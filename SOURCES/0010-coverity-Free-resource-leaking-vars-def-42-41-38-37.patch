@@ -1,0 +1,52 @@
+From f092a94a3676479b472c7c7fa3a8ea5c62baf7c9 Mon Sep 17 00:00:00 2001
+From: Martin Kutlak <mkutlak@redhat.com>
+Date: Mon, 20 Aug 2018 15:25:38 +0200
+Subject: [PATCH] coverity: Free resource leaking vars #def[42,41,38,37]
+
+The variables were used for their purpose, so we can free them.
+
+Signed-off-by: Martin Kutlak <mkutlak@redhat.com>
+---
+ src/plugins/mantisbt.c | 7 +++++++
+ 1 file changed, 7 insertions(+)
+
+diff --git a/src/plugins/mantisbt.c b/src/plugins/mantisbt.c
+index 2504f9ad..f2542afd 100644
+--- a/src/plugins/mantisbt.c
++++ b/src/plugins/mantisbt.c
+@@ -862,6 +862,7 @@ mantisbt_search_by_abrt_hash(mantisbt_settings_t *settings, const char *abrt_has
+     }
+ 
+     GList *ids = response_get_main_ids_list(result->mr_body);
++    mantisbt_result_free(result);
+ 
+     return ids;
+ }
+@@ -906,6 +907,7 @@ mantisbt_search_duplicate_issues(mantisbt_settings_t *settings, const char *cate
+     }
+ 
+     GList *ids = response_get_main_ids_list(result->mr_body);
++    mantisbt_result_free(result);
+ 
+     return ids;
+ }
+@@ -1101,11 +1103,16 @@ mantisbt_get_project_id_from_name(mantisbt_settings_t *settings)
+     soap_node_add_child_node(req->sr_method, "project_name", SOAP_STRING, settings->m_project);
+ 
+     mantisbt_result_t *result = mantisbt_soap_call(settings, req);
++    soap_request_free(req);
+ 
+     if (result->mr_http_resp_code != 200)
++    {
++        mantisbt_result_free(result);
+         error_msg_and_die(_("Failed to get project id from name"));
++    }
+ 
+     settings->m_project_id = response_get_return_value_as_string(result->mr_body);
++    mantisbt_result_free(result);
+ 
+     return;
+ }
+-- 
+2.17.1
+

@@ -1,0 +1,30 @@
+From 8c00a86dddaf240d4a836a5e278190bcc51b0b66 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Mon, 18 Jun 2018 14:51:23 +0200
+Subject: [PATCH] ureport: use python3 to get consumerCertDir
+
+Related to #1592073
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/lib/ureport.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/ureport.c b/src/lib/ureport.c
+index c32c948a..d2045f0f 100644
+--- a/src/lib/ureport.c
++++ b/src/lib/ureport.c
+@@ -81,9 +81,9 @@ rhsm_config_get_consumer_cert_dir(void)
+         return xstrdup(result);
+ 
+     result = run_in_shell_and_save_output(0,
+-            "python -c \"from rhsm.config import initConfig; print(initConfig().get('rhsm', 'consumerCertDir'))\"",
++            "python3 -c \"from rhsm.config import initConfig; print(initConfig().get('rhsm', 'consumerCertDir'))\"",
+             NULL, NULL);
+ 
+     /* run_in_shell_and_save_output always returns non-NULL */
+     if (result[0] != '/')
+         goto error;
+-- 
+2.17.0
+

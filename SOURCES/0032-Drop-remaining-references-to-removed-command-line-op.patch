@@ -1,0 +1,44 @@
+From 143c76e6db52881a8da188f54ec0ec1aacb209de Mon Sep 17 00:00:00 2001
+From: Ernestas Kulik <ekulik@redhat.com>
+Date: Wed, 19 Aug 2020 09:30:28 +0300
+Subject: [PATCH] Drop remaining references to removed command-line options
+
+cb81dc0870949fbacaa6e2384e91fc4de4df43a5 drops -u and -C options, but
+the report_RHTSupport event handler still passes one of them, resulting
+in failures.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1867064
+---
+ doc/reporter-rhtsupport.txt       | 2 +-
+ src/plugins/rhtsupport_event.conf | 4 ++--
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/doc/reporter-rhtsupport.txt b/doc/reporter-rhtsupport.txt
+index 132c0eaa..7d79e33b 100644
+--- a/doc/reporter-rhtsupport.txt
++++ b/doc/reporter-rhtsupport.txt
+@@ -7,7 +7,7 @@ reporter-rhtsupport - Reports problem to RHTSupport.
+ 
+ SYNOPSIS
+ --------
+-'reporter-rhtsupport' [-v] [-c CONFFILE] [-F FMTFILE] [-u -C UR_CONFFILE] -d DIR
++'reporter-rhtsupport' [-v] [-c CONFFILE] [-F FMTFILE] -d DIR
+ 
+ Or:
+ 
+diff --git a/src/plugins/rhtsupport_event.conf b/src/plugins/rhtsupport_event.conf
+index cc2f05d1..6b0b3e67 100644
+--- a/src/plugins/rhtsupport_event.conf
++++ b/src/plugins/rhtsupport_event.conf
+@@ -1,6 +1,6 @@
+ EVENT=report_RHTSupport
+-    # Submit an uReport and create a case in Red Hat Customer Portal
+-    reporter-rhtsupport -u
++    # Create a case in Red Hat Customer Portal
++    reporter-rhtsupport
+ 
+ EVENT=report_RHTSupport_AddData
+     # Attach data to a case in Red Hat Customer Portal
+-- 
+2.28.0
+

@@ -1,0 +1,60 @@
+From c0d0e59df7d73feb971ba495c81f4651a8cea8a6 Mon Sep 17 00:00:00 2001
+From: Martin Kutlak <mkutlak@redhat.com>
+Date: Wed, 5 Dec 2018 16:52:07 +0100
+Subject: [PATCH] reportclient: Search for required packages recursively
+
+Adds recursive function to search for required packages of required packages
+of re...
+
+Signed-off-by: Martin Kutlak <mkutlak@redhat.com>
+---
+ .../reportclient/dnfdebuginfo.py              | 21 +++++++++++++++++--
+ 1 file changed, 19 insertions(+), 2 deletions(-)
+
+diff --git a/src/client-python/reportclient/dnfdebuginfo.py b/src/client-python/reportclient/dnfdebuginfo.py
+index 04f98579..165c12d0 100644
+--- a/src/client-python/reportclient/dnfdebuginfo.py
++++ b/src/client-python/reportclient/dnfdebuginfo.py
+@@ -112,6 +112,23 @@ class DNFDebugInfoDownload(DebugInfoDownload):
+         not_found = []
+         todownload_size = 0
+         installed_size = 0
++
++        def required_packages(query, package, origin):
++            """
++            Recursive function to find all required packages of required packages of ...
++              origin - should stop infinite recursion (A => B => ... => X => A)
++            """
++            required_pkg_list = []
++            if package.requires:
++                pkg_reqs = query.filter(provides=package.requires, arch=package.arch)
++                for p in pkg_reqs:
++                    if p.name != origin.name and p not in required_pkg_list:
++                        required_pkg_list.append(p)
++                        required_pkg_list += required_packages(query, p, origin)
++
++            return required_pkg_list
++
++
+         for debuginfo_path in files:
+             di_package_list = []
+             packages = dnf_available.filter(file=debuginfo_path)
+@@ -122,13 +139,13 @@ class DNFDebugInfoDownload(DebugInfoDownload):
+             else:
+                 di_package_list.append(packages[0])
+                 if packages[0].requires:
+-                    package_reqs = dnf_available.filter(provides=packages[0].requires,
+-                                                        arch=packages[0].arch)
++                    package_reqs = required_packages(dnf_available, packages[0], packages[0])
+                     for pkg in package_reqs:
+                         if pkg not in di_package_list:
+                             di_package_list.append(pkg)
+                             log2("found required package {0} for {1}".format(pkg, packages[0]))
+ 
++
+                 for pkg in di_package_list:
+                     if pkg in package_files_dict.keys():
+                         package_files_dict[pkg].append(debuginfo_path)
+-- 
+2.24.1
+

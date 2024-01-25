@@ -1,0 +1,28 @@
+From 397ab29a84eeb73acf5bbaa5202b0b73c4de05db Mon Sep 17 00:00:00 2001
+From: Martin Kutlak <mkutlak@redhat.com>
+Date: Mon, 20 Aug 2018 15:52:03 +0200
+Subject: [PATCH] coverity: Check if pointer isnt null before strcmp #def40
+
+Passing NULL pointer to strcmp results in undefined behavior.
+
+Signed-off-by: Martin Kutlak <mkutlak@redhat.com>
+---
+ src/plugins/mantisbt.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/plugins/mantisbt.c b/src/plugins/mantisbt.c
+index f2542afd..1750dc5d 100644
+--- a/src/plugins/mantisbt.c
++++ b/src/plugins/mantisbt.c
+@@ -1042,7 +1042,7 @@ mantisbt_get_issue_info(const mantisbt_settings_t *settings, int issue_id)
+     issue_info->mii_dup_id = response_get_id_of_relatedto_issue(result->mr_body);
+ 
+     if (strcmp(issue_info->mii_status, "closed") == 0
+-        && strcmp(issue_info->mii_resolution, "duplicate") == 0
++        && (issue_info->mii_resolution != NULL && strcmp(issue_info->mii_resolution, "duplicate") == 0)
+         && issue_info->mii_dup_id == -1 )
+     {
+         error_msg(_("Issue %i is CLOSED as DUPLICATE, but it has no DUPLICATE_ID"),
+-- 
+2.17.1
+

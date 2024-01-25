@@ -1,0 +1,29 @@
+From f6a8abe53b5cfe93cb08bbfa1fb5da68b2399dbf Mon Sep 17 00:00:00 2001
+From: Martin Kutlak <mkutlak@redhat.com>
+Date: Mon, 20 Aug 2018 17:12:58 +0200
+Subject: [PATCH] coverity: Remove reverse inull #def30
+
+The stat_file cannot be NULL, it would already fail in xfdopen.
+
+Signed-off-by: Martin Kutlak <mkutlak@redhat.com>
+---
+ src/lib/get_cmdline.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/src/lib/get_cmdline.c b/src/lib/get_cmdline.c
+index c15fc193..83c2fb45 100644
+--- a/src/lib/get_cmdline.c
++++ b/src/lib/get_cmdline.c
+@@ -790,8 +790,7 @@ static int get_process_ppid_at(int pid_proc_fd, pid_t *ppid)
+         r = -2;
+     }
+ 
+-    if (stat_file != NULL)
+-        fclose(stat_file);
++    fclose(stat_file);
+ 
+     return r;
+ }
+-- 
+2.17.1
+

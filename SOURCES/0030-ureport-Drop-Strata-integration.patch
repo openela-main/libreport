@@ -1,0 +1,952 @@
+From 646101d558765b59bae94aa27bfbefed3a085ab5 Mon Sep 17 00:00:00 2001
+From: Ernestas Kulik <ekulik@redhat.com>
+Date: Tue, 2 Jun 2020 10:57:36 +0200
+Subject: [PATCH] ureport: Drop Strata integration
+
+Strata is being sunset with no replacement for our used API endpoints in
+sight. This commit drops the integration code, because no one pretty
+much wants it, either.
+---
+ configure.ac                               |  11 --
+ doc/reporter-rhtsupport.txt                |  17 --
+ doc/reporter-ureport.txt                   |   8 -
+ src/include/ureport.h                      |   4 +-
+ src/lib/ureport.c                          | 138 +--------------
+ src/plugins/Makefile.am                    |   6 -
+ src/plugins/cert-api.access.redhat.com.pem |  74 --------
+ src/plugins/report_RHTSupport.xml.in       |   5 -
+ src/plugins/reporter-rhtsupport.c          | 186 +--------------------
+ src/plugins/ureport.conf                   |   4 -
+ tests/ureport.at                           | 174 -------------------
+ tests/ureport/rhsm/__init__.py             |   0
+ tests/ureport/rhsm/config.py               |   8 -
+ 13 files changed, 7 insertions(+), 628 deletions(-)
+ delete mode 100644 src/plugins/cert-api.access.redhat.com.pem
+ delete mode 100644 tests/ureport/rhsm/__init__.py
+ delete mode 100644 tests/ureport/rhsm/config.py
+
+diff --git a/configure.ac b/configure.ac
+index ce45389..ef35f84 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -172,17 +172,6 @@ do
+ done
+ fi dnl end NO_MANTISBT
+ 
+-dnl enable import of certificate for rhtsupport plugin
+-AC_ARG_ENABLE([import-rhtsupport-cert],
+-AS_HELP_STRING([--enable-import-rhtsupport-cert],
+-    [import certificate needed for rhtsupport plugin (default is NO)]),
+-[], [enable_import_rhtsupport_cert="no"])
+-
+-AS_IF([test "x$enable_import_rhtsupport_cert" != "xno"],
+-AM_CONDITIONAL(ENABLE_IMPORT_RHTSUPPORT_CERT, true),
+-AM_CONDITIONAL(ENABLE_IMPORT_RHTSUPPORT_CERT, false))
+-
+-
+ AC_ARG_WITH(python2,
+ AS_HELP_STRING([--with-python2],[use python2 (default is YES)]),
+ LIBREPORT_PARSE_WITH([python2]))
+diff --git a/doc/reporter-rhtsupport.txt b/doc/reporter-rhtsupport.txt
+index e52a152..132c0ea 100644
+--- a/doc/reporter-rhtsupport.txt
++++ b/doc/reporter-rhtsupport.txt
+@@ -18,9 +18,6 @@ DESCRIPTION
+ The tool reads problem directory DIR. Then it logs in to RHTSupport
+ and creates a new case.
+ 
+-The tool can be configured to submit an uReport to RHTSupport together with
+-creating a new case.
+-
+ The URL to new case is printed to stdout and recorded in 'reported_to'
+ element in DIR.
+ 
+@@ -36,10 +33,6 @@ to enter case ID to which you want to upload the FILEs.
+ Option -tCASE uploads FILEs to the case CASE on RHTSupport site.
+ -d DIR is ignored.
+ 
+-Option -u uploads uReport along with creating a new case. uReport configuration
+-is loaded from UR_CONFFILE which defaults to
+-/etc/libreport/plugins/ureport.conf.
+-
+ Configuration file
+ ~~~~~~~~~~~~~~~~~~
+ Configuration file lines should have 'PARAM = VALUE' format. The parameters are:
+@@ -56,10 +49,6 @@ Configuration file lines should have 'PARAM = VALUE' format. The parameters are:
+ 'SSLVerify'::
+ 	Use yes/true/on/1 to verify server's SSL certificate. (default: yes)
+ 
+-'SubmitUReport'::
+-	Use yes/true/on/1 to enable submitting uReport together wit creating a new
+-	case. (default: no)
+-
+ Parameters can be overridden via $RHTSupport_PARAM environment variables.
+ 
+ Integration with ABRT events
+@@ -84,12 +73,6 @@ OPTIONS
+ -t[ID]::
+    Upload FILEs to the already created case on RHTSupport site.
+ 
+--u::
+-   Submit uReport together with creating a new case.
+-
+--C UR_CONFFILE::
+-   Configuration file for submitting uReports.
+-
+ -F CONF_FORMAT_FILE::
+    Formatting file for a new case.
+ 
+diff --git a/doc/reporter-ureport.txt b/doc/reporter-ureport.txt
+index 7deb911..fc06541 100644
+--- a/doc/reporter-ureport.txt
++++ b/doc/reporter-ureport.txt
+@@ -34,10 +34,6 @@ Configuration file lines should have 'PARAM = VALUE' format. The parameters are:
+ 
+    Possible values are:
+ 
+-   'rhsm';;
+-      Uses the system V3 entitlement certificate that is used for Red Hat
+-      subscription management.
+-
+    'puppet';;
+       Uses the certificate that is used by the Puppet configuration management tool.
+ 
+@@ -51,10 +47,6 @@ Configuration file lines should have 'PARAM = VALUE' format. The parameters are:
+ 
+    Possible values are::
+ 
+-   'rhts-credentials';;
+-      Uses Login= and Password= values from /etc/libreport/plugins/rhtsupport.conf and
+-      user's local ~/.config/libreport/rhtsupport.conf.
+-
+    '<user_name>:<password>';;
+       Manually supply credentials.
+ 
+diff --git a/src/include/ureport.h b/src/include/ureport.h
+index 63d9bf2..2e6de49 100644
+--- a/src/include/ureport.h
++++ b/src/include/ureport.h
+@@ -115,8 +115,7 @@ ureport_server_config_set_url(struct ureport_server_config *config,
+  * Configure client certificate paths
+  *
+  * @param config Where the paths are stored
+- * @param client_path Path in form of cert_full_path:key_full_path or one of
+- *        the following string: 'rhsm', 'puppet'.
++ * @param client_path Path in form of cert_full_path:key_full_path or 'puppet'.
+  */
+ #define ureport_server_config_set_client_auth libreport_ureport_server_config_set_client_auth
+ void
+@@ -139,7 +138,6 @@ ureport_server_config_set_basic_auth(struct ureport_server_config *config,
+  * Configure user name and password for HTTP Basic authentication according to
+  * user preferences.
+  *
+- *  "rhts-credentials" - Uses Login= and Password= from rhtsupport.conf
+  *  "<user_name>:<password>" - Manually supply user name and password.
+  *  "<user_name>" - Manually supply user name and be asked for password.
+  *
+diff --git a/src/lib/ureport.c b/src/lib/ureport.c
+index ced4810..5d0a820 100644
+--- a/src/lib/ureport.c
++++ b/src/lib/ureport.c
+@@ -30,19 +30,6 @@
+ 
+ #define BTHASH_URL_SFX "reports/bthash/"
+ 
+-#define RHSM_WEB_SERVICE_URL "https://cert-api.access.redhat.com/rs/telemetry/abrt"
+-
+-#define RHSMCON_PEM_DIR_PATH "/etc/pki/consumer"
+-#define RHSMCON_CERT_NAME "cert.pem"
+-#define RHSMCON_KEY_NAME "key.pem"
+-
+-/* Using the same template as for RHSM certificate, macro for cert dir path and
+- * macro for cert name. Cert path can be easily modified for example by reading
+- * an environment variable LIBREPORT_DEBUG_AUTHORITY_CERT_DIR_PATH
+- */
+-#define CERT_AUTHORITY_CERT_PATH "/etc/libreport"
+-#define CERT_AUTHORITY_CERT_NAME "cert-api.access.redhat.com.pem"
+-
+ static char *
+ puppet_config_print(const char *key)
+ {
+@@ -73,55 +60,6 @@ ureport_server_config_set_url(struct ureport_server_config *config,
+     config->ur_url = server_url;
+ }
+ 
+-static char *
+-rhsm_config_get_consumer_cert_dir(void)
+-{
+-    char *result = getenv("LIBREPORT_DEBUG_RHSMCON_PEM_DIR_PATH");
+-    if (result != NULL)
+-        return xstrdup(result);
+-
+-    result = run_in_shell_and_save_output(0,
+-            "python3 -c \"from rhsm.config import initConfig; print(initConfig().get('rhsm', 'consumerCertDir'))\"",
+-            NULL, NULL);
+-
+-    /* run_in_shell_and_save_output always returns non-NULL */
+-    if (result[0] != '/')
+-        goto error;
+-
+-    char *newline = strchrnul(result, '\n');
+-    if (!newline)
+-        goto error;
+-
+-    *newline = '\0';
+-    return result;
+-error:
+-    free(result);
+-    error_msg("Failed to get 'rhsm':'consumerCertDir' from rhsm.config python module. Using "RHSMCON_PEM_DIR_PATH);
+-    return xstrdup(RHSMCON_PEM_DIR_PATH);
+-}
+-
+-static bool
+-certificate_exist(char *cert_name)
+-{
+-    if (access(cert_name, F_OK) != 0)
+-    {
+-        log_notice("RHSM consumer certificate '%s' does not exist.", cert_name);
+-        return false;
+-    }
+-    return true;
+-}
+-
+-static bool
+-cert_authority_cert_exist(char *cert_name)
+-{
+-    if (access(cert_name, F_OK) != 0)
+-    {
+-        log_notice("Certs validating the server '%s' does not exist.", cert_name);
+-        return false;
+-    }
+-    return true;
+-}
+-
+ void
+ ureport_server_config_set_client_auth(struct ureport_server_config *config,
+                                       const char *client_auth)
+@@ -139,52 +77,6 @@ ureport_server_config_set_client_auth(struct ureport_server_config *config,
+ 
+         log_notice("Not using client authentication");
+     }
+-    else if (strcmp(client_auth, "rhsm") == 0)
+-    {
+-        if (config->ur_url == NULL)
+-            ureport_server_config_set_url(config, xstrdup(RHSM_WEB_SERVICE_URL));
+-
+-        /* always returns non-NULL */
+-        char *rhsm_dir = rhsm_config_get_consumer_cert_dir();
+-
+-        char *cert_full_name = concat_path_file(rhsm_dir, RHSMCON_CERT_NAME);
+-        char *key_full_name = concat_path_file(rhsm_dir, RHSMCON_KEY_NAME);
+-
+-        /* get authority certificate dir path from environment variable, if it
+-         * is not set, use CERT_AUTHORITY_CERT_PATH
+-         */
+-        const char *authority_cert_dir_path = getenv("LIBREPORT_DEBUG_AUTHORITY_CERT_DIR_PATH");
+-        if (authority_cert_dir_path == NULL)
+-           authority_cert_dir_path = CERT_AUTHORITY_CERT_PATH;
+-
+-        char *cert_authority_cert_full_name = concat_path_file(authority_cert_dir_path,
+-                                                                 CERT_AUTHORITY_CERT_NAME);
+-
+-        if (certificate_exist(cert_full_name) && certificate_exist(key_full_name))
+-        {
+-            config->ur_client_cert = cert_full_name;
+-            config->ur_client_key = key_full_name;
+-            log_debug("Using cert files: '%s' : '%s'", config->ur_client_cert, config->ur_client_key);
+-        }
+-        else
+-        {
+-            free(cert_full_name);
+-            free(key_full_name);
+-            log_notice("Using the default configuration for uReports.");
+-        }
+-
+-        if (cert_authority_cert_exist(cert_authority_cert_full_name))
+-        {
+-            config->ur_cert_authority_cert = cert_authority_cert_full_name;
+-            log_debug("Using validating server cert: '%s'", config->ur_cert_authority_cert);
+-        }
+-        else
+-        {
+-            free(cert_authority_cert_full_name);
+-        }
+-
+-        free(rhsm_dir);
+-    }
+     else if (strcmp(client_auth, "puppet") == 0)
+     {
+         config->ur_client_cert = puppet_config_print("hostcert");
+@@ -241,32 +133,12 @@ ureport_server_config_load_basic_auth(struct ureport_server_config *config,
+     const char *username = NULL;
+     const char *password = NULL;
+ 
+-    if (strcmp(http_auth_pref, "rhts-credentials") == 0)
+-    {
+-        settings = new_map_string();
+-
+-        char *local_conf = xasprintf("%s"USER_HOME_CONFIG_PATH"/rhtsupport.conf", getenv("HOME"));
+-
+-        if (!load_plugin_conf_file("rhtsupport.conf", settings, /*skip key w/o values:*/ false) &&
+-            !load_conf_file(local_conf, settings, /*skip key w/o values:*/ false))
+-            error_msg_and_die("Could not get RHTSupport credentials");
+-        free(local_conf);
+-
+-        username = get_map_string_item_or_NULL(settings, "Login");
+-        password = get_map_string_item_or_NULL(settings, "Password");
+-
+-        if (config->ur_url == NULL)
+-            ureport_server_config_set_url(config, xstrdup(RHSM_WEB_SERVICE_URL));
+-    }
+-    else
+-    {
+-        username = tmp_username = xstrdup(http_auth_pref);
+-        password = strchr(tmp_username, ':');
++    username = tmp_username = xstrdup(http_auth_pref);
++    password = strchr(tmp_username, ':');
+ 
+-        if (password != NULL)
+-            /* It is "char *", see strchr() few lines above. */
+-            *((char *)(password++)) = '\0';
+-    }
++    if (password != NULL)
++        /* It is "char *", see strchr() few lines above. */
++        *((char *)(password++)) = '\0';
+ 
+     if (password == NULL)
+     {
+diff --git a/src/plugins/Makefile.am b/src/plugins/Makefile.am
+index b228602..f73e7dc 100644
+--- a/src/plugins/Makefile.am
++++ b/src/plugins/Makefile.am
+@@ -28,12 +28,6 @@ pluginsconfdir = $(PLUGINS_CONF_DIR)
+ 
+ reportpluginsconfdir = $(REPORT_PLUGINS_CONF_DIR)
+ 
+-if ENABLE_IMPORT_RHTSUPPORT_CERT
+-libreportconfdir = $(CONF_DIR)
+-dist_libreportconf_DATA = \
+-    cert-api.access.redhat.com.pem
+-endif
+-
+ reporters_plugin_conf =
+ reporters_plugin_format_conf =
+ if BUILD_BUGZILLA
+diff --git a/src/plugins/cert-api.access.redhat.com.pem b/src/plugins/cert-api.access.redhat.com.pem
+deleted file mode 100644
+index 20ef8c0..0000000
+--- a/src/plugins/cert-api.access.redhat.com.pem
++++ /dev/null
+@@ -1,74 +0,0 @@
+------BEGIN CERTIFICATE-----
+-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
+-Kg6Ay0rrsi4nw1JHue2GvdjdfVOaWSWC
+------END CERTIFICATE-----
+------BEGIN CERTIFICATE-----
+-MIIFfTCCA2WgAwIBAgIJAJGKz8qFAAADMA0GCSqGSIb3DQEBBQUAMIGwMQswCQYD
+-VQQGEwJVUzEXMBUGA1UECAwOTm9ydGggQ2Fyb2xpbmExEDAOBgNVBAcMB1JhbGVp
+-Z2gxFjAUBgNVBAoMDVJlZCBIYXQsIEluYy4xGDAWBgNVBAsMD1JlZCBIYXQgTmV0
+-d29yazEeMBwGA1UEAwwVRW50aXRsZW1lbnQgTWFzdGVyIENBMSQwIgYJKoZIhvcN
+-AQkBFhVjYS1zdXBwb3J0QHJlZGhhdC5jb20wHhcNMTUwNTA1MTMwMzQ4WhcNMjUw
+-NTAyMTMwMzQ4WjCBiTELMAkGA1UEBhMCVVMxFzAVBgNVBAgTDk5PUlRIIENBUk9M
+-SU5BMRAwDgYDVQQHEwdSYWxlaWdoMRAwDgYDVQQKEwdSZWQgSGF0MRgwFgYDVQQL
+-Ew9SZWQgSGF0IE5ldHdvcmsxIzAhBgNVBAMTGmNlcnQtYXBpLmFjY2Vzcy5yZWRo
+-YXQuY29tMIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEA9hTNMtZMa7Kg
+-Jlux6pnuUinP0Rv0aiiPFr7qNHFore4loGrPlpzUvQbUByy3xm7lhf4R4qbINCls
+-veWg6HDidvQr174RXb5YLMXuBrYAiPWQTrRRLNuvXFHKzREghRWTv48IXTIDEo0G
+-fZJUO+myY2RfwqugZKic5dR6ZakHSSpQO70O6H5R0eHlKa13k4eEpG2fVY/xqFto
+-WkfZyEmSacZpqxp7gIjZqreLc4MFwpiVjGFrK3Jk+Px1Z6J94LTLx2SxrYzWIeUs
+-5j+lceQOvpV4/pkClnRCW1pkCKTccjFKQkpNPGwdIusRXUGl9IYc20Fa/7g9iUQc
+-5fXu9EAzfwIDAQABo4G+MIG7MAkGA1UdEwQCMAAwEQYJYIZIAYb4QgEBBAQDAgZA
+-MAsGA1UdDwQEAwIF4DATBgNVHSUEDDAKBggrBgEFBQcDATA5BglghkgBhvhCAQ0E
+-LBYqTWFuYWdlZCBieSBSZWQgSGF0IChjYS1zdXBwb3J0QHJlZGhhdC5jb20pMB0G
+-A1UdDgQWBBRfgCjd8aXf0U4VX8DKTVIn+paGBzAfBgNVHSMEGDAWgBSIS6ZFxEbs
+-j9bPpvYazyY8kMx/FzANBgkqhkiG9w0BAQUFAAOCAgEAlC+r6UEEp5BUkI0Rj2T+
+-1PH7oUCaGQeQoyVbGddz/WUcBk/lMMtyCEoxU+3tTwNWmCWWjYXtjoL9MlSAC/q+
+-NZfBi1iq0uuSus9JI/Uu8aRhoxTK56qGRed/JNixOHEmFn891cahIPpF0exWwtYD
+-ThwXo7Z6PI7t8EMKdSrGTOowp58yho8xYFL/Z7JmjL55Pf85GIrdiniNZd4i178J
+-07R9zsiLvdXq9mT33iJwkm+uhO+FA9d8OE3ji21pBbGUAQSWOdkemvUCsy8zANW9
+-fT+dBrMr5Buk7eaBBJ2PxECNiWLCRQJWmyff1O5zMT0daS2lBdEGUNhBZ0hnX13Q
+-kabUp0bxRrNRq+WkomP7onZhfZS6SjKm0UmwoV6o3V1ED6y7muQNRmgDpA5PcbvO
+-gl7OexNL4zcpyfMdAmTYf5yTRSvB42Yg5hVfuzPEnOIqupwES3mWkEHRlqbMUkHw
+-qIQAxIwQqZd5PdPpElQ/6j/ZT9DwW/I6zgndX2rsS0oGYcwFTkSj0/rKKkC13hk7
+-LchXMZu5ckdustM79U6OZIBairrJaL2OpR08un2nwIjgEGqhVFYc44UK1VpkE8mr
+-qvqJS6OHVlTlKcEDnhVkPS3i5qjuS/PtSq0CwH8bzYKFJayLDY/z36Zv6PdttzmU
+-Yb1NSDcJejHJ80pMINutyYQ=
+------END CERTIFICATE-----
+diff --git a/src/plugins/report_RHTSupport.xml.in b/src/plugins/report_RHTSupport.xml.in
+index 357a94d..c64cb55 100644
+--- a/src/plugins/report_RHTSupport.xml.in
++++ b/src/plugins/report_RHTSupport.xml.in
+@@ -26,11 +26,6 @@
+             <allow-empty>no</allow-empty>
+         </option>
+         <advanced-options>
+-            <option type="bool" name="RHTSupport_SubmitUReport">
+-                <_label>Submit uReport</_label>
+-                <_note-html>Submit &lt;a href="https://access.redhat.com/articles/642323"&gt;micro-report&lt;/a&gt; when creating a new case. </_note-html>
+-                <default-value>yes</default-value>
+-            </option>
+             <option type="text" name="RHTSupport_URL">
+                 <_label>RH Portal URL</_label>
+                 <allow-empty>no</allow-empty>
+diff --git a/src/plugins/reporter-rhtsupport.c b/src/plugins/reporter-rhtsupport.c
+index d11b4bd..411bffc 100644
+--- a/src/plugins/reporter-rhtsupport.c
++++ b/src/plugins/reporter-rhtsupport.c
+@@ -222,96 +222,6 @@ ret_clean:
+     return retval;
+ }
+ 
+-static
+-struct ureport_server_response *ureport_do_post_credentials(const char *json, struct ureport_server_config *config, const char *action)
+-{
+-    struct post_state *post_state = NULL;
+-    while (1)
+-    {
+-        post_state = ureport_do_post(json, config, action);
+-
+-        if (post_state == NULL)
+-        {
+-            error_msg(_("Failed on submitting the problem"));
+-            return NULL;
+-        }
+-
+-        if (post_state->http_resp_code != 401)
+-            break;
+-
+-        free_post_state(post_state);
+-
+-        char *login = NULL;
+-        char *password = NULL;
+-        ask_rh_credentials(&login, &password);
+-        ureport_server_config_set_basic_auth(config, login, password);
+-        free(password);
+-        free(login);
+-    }
+-
+-    struct ureport_server_response *resp = ureport_server_response_from_reply(post_state, config);
+-    free(post_state);
+-    return resp;
+-}
+-
+-static
+-char *submit_ureport(const char *dump_dir_name, struct ureport_server_config *conf)
+-{
+-    struct dump_dir *dd = dd_opendir(dump_dir_name, DD_OPEN_READONLY);
+-    if (dd == NULL)
+-        return NULL;
+-
+-    report_result_t *rr_bthash = find_in_reported_to(dd, "uReport");
+-    dd_close(dd);
+-
+-    if (rr_bthash != NULL)
+-    {
+-        log_notice("uReport has already been submitted.");
+-        char *ret = xstrdup(rr_bthash->bthash);
+-        free_report_result(rr_bthash);
+-        return ret;
+-    }
+-
+-    char *json = ureport_from_dump_dir(dump_dir_name);
+-    if (json == NULL)
+-    {
+-        log_notice(_("Failed to generate microreport from the problem data"));
+-        return NULL;
+-    }
+-
+-    struct ureport_server_response *resp = ureport_do_post_credentials(json, conf, UREPORT_SUBMIT_ACTION);
+-    free(json);
+-    if (resp == NULL)
+-        return NULL;
+-
+-    char *bthash = NULL;
+-    if (!resp->urr_is_error)
+-    {
+-        if (resp->urr_bthash != NULL)
+-            bthash = xstrdup(resp->urr_bthash);
+-
+-        ureport_server_response_save_in_dump_dir(resp, dump_dir_name, conf);
+-
+-        if (resp->urr_message)
+-            log_warning("%s", resp->urr_message);
+-    }
+-    else if (g_verbose > 2)
+-        error_msg(_("Server responded with an error: '%s'"), resp->urr_value);
+-
+-    ureport_server_response_free(resp);
+-    return bthash;
+-}
+-
+-static
+-void attach_to_ureport(struct ureport_server_config *conf,
+-        const char *bthash, const char *attach_id, const char *data)
+-{
+-    char *json = ureport_json_attachment_new(bthash, attach_id, data);
+-    struct ureport_server_response *resp = ureport_do_post_credentials(json, conf, UREPORT_ATTACH_ACTION);
+-    ureport_server_response_free(resp);
+-    free(json);
+-}
+-
+ static
+ bool check_for_hints(const char *url, char **login, char **password, bool ssl_verify, const char *tempfile)
+ {
+@@ -420,42 +330,6 @@ char *get_param_string(const char *name, map_string_t *settings, const char *dfl
+     return xstrdup(envvar ? envvar : (get_map_string_item_or_NULL(settings, name) ? : dflt));
+ }
+ 
+-static
+-void prepare_ureport_configuration(const char *urcfile,
+-        map_string_t *settings, struct ureport_server_config *urconf,
+-        const char *portal_url, const char *login, const char *password, bool ssl_verify)
+-{
+-    load_conf_file(urcfile, settings, false);
+-    ureport_server_config_init(urconf);
+-
+-    /* The following lines cause that we always use URL from ureport's
+-     * configuration becuase the GUI reporter always exports uReport_URL env
+-     * var.
+-     *
+-     *   char *url = NULL;
+-     *   UREPORT_OPTION_VALUE_FROM_CONF(settings, "URL", url, xstrdup);
+-     *   if (url != NULL)
+-     *       ureport_server_config_set_url(urconf, url);
+-     */
+-
+-    ureport_server_config_set_url(urconf, concat_path_file(portal_url, "/telemetry/abrt"));
+-    urconf->ur_ssl_verify = ssl_verify;
+-
+-    ureport_server_config_set_basic_auth(urconf, login, password);
+-
+-    bool include_auth = true;
+-    UREPORT_OPTION_VALUE_FROM_CONF(settings, "IncludeAuthData", include_auth, string_to_bool);
+-
+-    if (include_auth)
+-    {
+-        const char *auth_items = NULL;
+-        UREPORT_OPTION_VALUE_FROM_CONF(settings, "AuthDataItems", auth_items, (const char *));
+-        urconf->ur_prefs.urp_auth_items = parse_list(auth_items);
+-    }
+-
+-    urconf->ur_prefs.urp_flags |= UREPORT_PREF_FLAG_RETURN_ON_FAILURE;
+-}
+-
+ static char *create_case_url(char *url, const char *case_no)
+ {
+     char *url1 = concat_path_file(url, RHTSUPPORT_CASE_URL_PATH);
+@@ -496,7 +370,6 @@ int main(int argc, char **argv)
+     const char *dump_dir_name = ".";
+     const char *case_no = NULL;
+     GList *conf_file = NULL;
+-    const char *urconf_file = UREPORT_CONF_FILE_PATH;
+     const char *fmt_file = NULL;
+ 
+     /* Can't keep these strings/structs static: _() doesn't support that */
+@@ -524,10 +397,6 @@ int main(int argc, char **argv)
+         "\n"
+         "Option -tCASE uploads FILEs to the case CASE on RHTSupport site.\n"
+         "-d DIR is ignored.\n"
+-        "\n"
+-        "Option -u sends ABRT crash statistics data (uReport) before creating a new case.\n"
+-        "uReport configuration is loaded from UR_CONFFILE which defaults to\n"
+-        UREPORT_CONF_FILE_PATH".\n"
+     );
+     enum {
+         OPT_v = 1 << 0,
+@@ -547,8 +416,6 @@ int main(int argc, char **argv)
+         OPT_LIST(     'c', NULL, &conf_file    , "FILE", _("Configuration file (may be given many times)")),
+         OPT_OPTSTRING('t', NULL, &case_no      , "ID"  , _("Upload FILEs [to case with this ID]")),
+         OPT_BOOL(     'f', NULL, NULL          ,         _("Force reporting even if this problem is already reported")),
+-        OPT_BOOL(     'u', NULL, NULL          ,         _("Submit uReport before creating a new case")),
+-        OPT_STRING(   'C', NULL, &urconf_file  , "FILE", _("Configuration file for uReport")),
+         OPT_STRING(   'F', NULL, &fmt_file     , "FILE", _("Formatting file for a new case")),
+         OPT_BOOL(     'D', NULL, NULL          ,         _("Debug")),
+         OPT_END()
+@@ -607,22 +474,10 @@ int main(int argc, char **argv)
+                 /* RH has a 250m limit for web attachments (as of 2013) */
+                 envvar ? envvar : (get_map_string_item_or_NULL(settings, "BigSizeMB") ? : "200")
+     );
+-    envvar = getenv("RHTSupport_SubmitUReport");
+-    bool submit_ur = string_to_bool(
+-                envvar ? envvar :
+-                    (get_map_string_item_or_NULL(settings, "SubmitUReport") ? :
+-                        ((opts & OPT_u) ? "1" : "0"))
+-    );
++
+     free_map_string(settings);
+ 
+     char *base_api_url = xstrdup(url);
+-    char *bthash = NULL;
+-
+-    map_string_t *ursettings = new_map_string();
+-    struct ureport_server_config urconf;
+-
+-    prepare_ureport_configuration(urconf_file, ursettings, &urconf,
+-            url, login, password, ssl_verify);
+ 
+     if (opts & OPT_t)
+     {
+@@ -697,17 +552,6 @@ int main(int argc, char **argv)
+                 return 0;
+         }
+         free_report_result(reported_to);
+-
+-        if (submit_ur)
+-        {
+-            log_warning(_("Sending ABRT crash statistics data"));
+-
+-            bthash = submit_ureport(dump_dir_name, &urconf);
+-
+-            /* Ensure that we will use the updated credentials */
+-            STRCPY_IF_NOT_EQUAL(login, urconf.ur_username);
+-            STRCPY_IF_NOT_EQUAL(password, urconf.ur_password);
+-        }
+     }
+ 
+     problem_data_t *problem_data = create_problem_data_for_reporting(dump_dir_name);
+@@ -930,30 +774,6 @@ int main(int argc, char **argv)
+         }
+         /* else: error msg was already emitted by dd_opendir */
+ 
+-        if (bthash)
+-        {
+-            log_warning(_("Linking ABRT crash statistics record with the case"));
+-
+-            /* Make sure we use the current credentials */
+-            ureport_server_config_set_basic_auth(&urconf, login, password);
+-
+-            /* Attach Customer Case ID*/
+-            attach_to_ureport(&urconf, bthash, "RHCID", result->url);
+-
+-            /* Attach Contact e-mail if configured */
+-            const char *email = NULL;
+-            UREPORT_OPTION_VALUE_FROM_CONF(ursettings, "ContactEmail", email, (const char *));
+-            if (email != NULL)
+-            {
+-                log_warning(_("Linking ABRT crash statistics record with contact email: '%s'"), email);
+-                attach_to_ureport(&urconf, bthash, "email", email);
+-            }
+-
+-            /* Update the credentials */
+-            STRCPY_IF_NOT_EQUAL(login, urconf.ur_username);
+-            STRCPY_IF_NOT_EQUAL(password, urconf.ur_password);
+-        }
+-
+         url = result->url;
+         result->url = NULL;
+         free_rhts_result(result);
+@@ -1021,10 +841,6 @@ int main(int argc, char **argv)
+     free_rhts_result(result_atch);
+     free_rhts_result(result);
+ 
+-    ureport_server_config_destroy(&urconf);
+-    free_map_string(ursettings);
+-    free(bthash);
+-
+     free(base_api_url);
+     free(url);
+     free(login);
+diff --git a/src/plugins/ureport.conf b/src/plugins/ureport.conf
+index 04dc100..11f4531 100644
+--- a/src/plugins/ureport.conf
++++ b/src/plugins/ureport.conf
+@@ -22,8 +22,6 @@
+ # 'IncludeAuthData' to 'yes'.
+ # None (default):
+ # SSLClientAuth =
+-# Using RH subscription management consumer certificate:
+-# SSLClientAuth = rhsm
+ # Using Puppet certificate:
+ # SSLClientAuth = puppet
+ # Using custom certificate:
+@@ -32,8 +30,6 @@
+ # HTTP Basic authentication credentials.
+ # Assingning any value to 'HTTPAuth' changes the default value of
+ # 'IncludeAuthData' to 'yes'.
+-# Use Login= and Password= from /etc/libreport/plugins/rhtsupport.conf:
+-# HTTPAuth = rhts-credentials
+ # Use username and password:
+ # HTTPAuth = username:password
+ 
+diff --git a/tests/ureport.at b/tests/ureport.at
+index ecaa3dd..51ca0c2 100644
+--- a/tests/ureport.at
++++ b/tests/ureport.at
+@@ -250,73 +250,6 @@ int main(void)
+     ureport_server_config_destroy(&config);
+     free_map_string(settings);
+ 
+-    /* value from env */
+-    /* HTTPAuth set to 'username:password' */
+-    /* SSLClientAuth set to 'rhsm' */
+-    ureport_server_config_init(&config);
+-
+-    settings = new_map_string();
+-
+-    setenv("uReport_SSLClientAuth", "rhsm", 1);
+-    setenv("uReport_HTTPAuth", "username:password", 1);
+-    setenv("uReport_AuthDataItems", "hostname, time", 1);
+-
+-    setenv("LIBREPORT_DEBUG_RHSMCON_PEM_DIR_PATH", TESTING_CERTS_CORRECT_DIR_PATH, 1);
+-
+-    ureport_server_config_load(&config, settings);
+-
+-    assert(strcmp(config.ur_username, "username") == 0);
+-    assert(strcmp(config.ur_password, "password") == 0);
+-
+-    assert(config.ur_client_cert == NULL);
+-    assert(config.ur_client_key == NULL);
+-    assert(size_map_string(config.ur_http_headers) == 0);
+-
+-    l = config.ur_prefs.urp_auth_items;
+-    assert(strcmp(l->data, "hostname") == 0);
+-    assert(strcmp(l->next->data, "time") == 0);
+-
+-    unsetenv("LIBREPORT_DEBUG_RHSMCON_PEM_DIR_PATH");
+-
+-    unsetenv("uReport_SSLClientAuth");
+-    unsetenv("uReport_HTTPAuth");
+-    unsetenv("uReport_AuthDataItems");
+-
+-    free_map_string(settings);
+-
+-    ureport_server_config_destroy(&config);
+-
+-    /* value from settings */
+-    /* HTTPAuth set to 'username:password' */
+-    /* SSLClientAuth set to 'rhsm' */
+-    ureport_server_config_init(&config);
+-
+-    settings = new_map_string();
+-    insert_map_string(settings, xstrdup("SSLClientAuth"), xstrdup("rhsm"));
+-    insert_map_string(settings, xstrdup("HTTPAuth"), xstrdup("rhn-username:rhn-password"));
+-    insert_map_string(settings, xstrdup("AuthDataItems"), xstrdup("hostname, type"));
+-
+-    setenv("LIBREPORT_DEBUG_RHSMCON_PEM_DIR_PATH", TESTING_CERTS_CORRECT_DIR_PATH, 1);
+-
+-    ureport_server_config_load(&config, settings);
+-
+-    assert(strcmp(config.ur_username, "rhn-username") == 0);
+-    assert(strcmp(config.ur_password, "rhn-password") == 0);
+-
+-    assert(config.ur_client_cert == NULL);
+-    assert(config.ur_client_key == NULL);
+-    assert(size_map_string(config.ur_http_headers) == 0);
+-
+-    l = config.ur_prefs.urp_auth_items;
+-    assert(strcmp(l->data, "hostname") == 0);
+-    assert(strcmp(l->next->data, "type") == 0);
+-
+-    unsetenv("LIBREPORT_DEBUG_RHSMCON_PEM_DIR_PATH");
+-
+-    free_map_string(settings);
+-
+-    ureport_server_config_destroy(&config);
+-
+     return 0;
+ }
+ ]])
+@@ -366,7 +299,6 @@ AT_TESTFUN([ureport_server_config_set_client_auth],
+ #include <assert.h>
+ 
+ #define DESTROYED_POINTER (void *)0xdeadbeef
+-#define RHSM_WEB_SERVICE_URL "https://cert-api.access.redhat.com/rs/telemetry/abrt"
+ 
+ #define TESTING_CERTS_CORRECT_DIR_PATH "../../ureport/certs/correct"
+ #define TESTING_CERTS_INCORRECT_ONLY_CERT_DIR_PATH "../../ureport/certs/only_cert"
+@@ -374,10 +306,6 @@ AT_TESTFUN([ureport_server_config_set_client_auth],
+ #define TESTING_PYTHONPATH "../../ureport/"
+ #define WRONG_TESTING_PYTHONPATH "../../ureportxxxxxx/"
+ 
+-#define RHSMCON_PEM_DIR_PATH "/etc/pki/consumer"
+-#define RHSMCON_CERT_NAME "cert.pem"
+-#define RHSMCON_KEY_NAME "key.pem"
+-
+ char *my_strdup(const char *str)
+ {
+     if (str == NULL)
+@@ -500,52 +428,6 @@ int main(void)
+ 
+     ureport_server_config_destroy(&config);
+ 
+-    /* client_auth == rhsm */
+-    /* ur_url == NULL */
+-    /* no certs */
+-    char *empty_cert_dir = mkdtemp(strdup("/tmp/cert_XXXXXX"));
+-    assert(empty_cert_dir);
+-    setenv("LIBREPORT_DEBUG_RHSMCON_PEM_DIR_PATH", empty_cert_dir, 1);
+-
+-    int status = test_ureport_server_config_set_client_auth_exit_code_ext(&config, "rhsm", NULL, NULL);
+-    assert(status == 0);
+-
+-    assert(rmdir(empty_cert_dir) == 0);
+-
+-    /* client_auth == rhsm */
+-    /* ur_url == NULL */
+-    /* certs exists (only RHSMCON_CERT_NAME exists) */
+-
+-    setenv("LIBREPORT_DEBUG_RHSMCON_PEM_DIR_PATH", TESTING_CERTS_INCORRECT_ONLY_CERT_DIR_PATH, 1);
+-
+-    status = test_ureport_server_config_set_client_auth_exit_code_ext(&config, "rhsm", NULL, NULL);
+-    assert(status == 0);
+-
+-    /* client_auth == rhsm */
+-    /* ur_url == NULL */
+-    /* certs exists (only RHSMCON_KEY_NAME exists) */
+-
+-    setenv("LIBREPORT_DEBUG_RHSMCON_PEM_DIR_PATH", TESTING_CERTS_INCORRECT_ONLY_KEY_DIR_PATH, 1);
+-
+-    status = test_ureport_server_config_set_client_auth_exit_code_ext(&config, "rhsm", NULL, NULL);
+-    assert(status == 0);
+-
+-    /* client_auth == rhsm */
+-    /* ur_url == NULL */
+-    /* certs exists (correct) */
+-    ureport_server_config_init(&config);
+-
+-    setenv("LIBREPORT_DEBUG_RHSMCON_PEM_DIR_PATH", TESTING_CERTS_CORRECT_DIR_PATH, 1);
+-
+-    ureport_server_config_set_client_auth(&config, "rhsm");
+-
+-    assert_ureport_server_config(&config, RHSM_WEB_SERVICE_URL, true,
+-                                TESTING_CERTS_CORRECT_DIR_PATH"/cert.pem",
+-                                TESTING_CERTS_CORRECT_DIR_PATH"/key.pem",
+-                                NULL, NULL);
+-
+-    ureport_server_config_destroy(&config);
+-
+     /* client_auth == cert:key */
+     /* ur_url == NULL */
+     ureport_server_config_init(&config);
+@@ -572,44 +454,6 @@ int main(void)
+     ret_val = test_ureport_server_config_set_client_auth_exit_code(&config, "cert");
+     assert(ret_val != 0 && ret_val != -1);
+ 
+-/* rhsm_config_get_consumer_cert_dir */
+-/* certs exists (correct content) */
+-    unsetenv("LIBREPORT_DEBUG_RHSMCON_PEM_DIR_PATH");
+-    setenv("PYTHONPATH", TESTING_PYTHONPATH, 1);
+-
+-    ureport_server_config_init(&config);
+-    ureport_server_config_set_client_auth(&config, "rhsm");
+-
+-    char *abs_path_cert = realpath(TESTING_CERTS_CORRECT_DIR_PATH"/cert.pem", NULL);
+-    char *abs_path_key = realpath(TESTING_CERTS_CORRECT_DIR_PATH"/key.pem", NULL);
+-
+-    assert_ureport_server_config(&config, RHSM_WEB_SERVICE_URL, true,
+-                                abs_path_cert,
+-                                abs_path_key,
+-                                NULL, NULL);
+-    free(abs_path_cert);
+-    free(abs_path_key);
+-
+-    ureport_server_config_destroy(&config);
+-
+-    /* python script fails, '/etc/pki/consumer' is returned  */
+-
+-    /* set cert dir path to '/etc/pki/consumer' */
+-    /* store return value of ureport_server_config_set_client_auth */
+-    setenv("LIBREPORT_DEBUG_RHSMCON_PEM_DIR_PATH", RHSMCON_PEM_DIR_PATH, 1);
+-
+-    int exp_ret_val = test_ureport_server_config_set_client_auth_exit_code(&config, "rhsm");
+-
+-    /* Do the same with unset LIBREPORT_DEBUG_RHSMCON_PEM_DIR_PATH and wrong PYTHONPATH */
+-    /* function rhsm_config_get_consumer_cert_dir has to return RHSMCON_PEM_DIR_PATH */
+-    unsetenv("LIBREPORT_DEBUG_RHSMCON_PEM_DIR_PATH");
+-    setenv("PYTHONPATH", WRONG_TESTING_PYTHONPATH, 1);
+-
+-    int rec_ret_val = test_ureport_server_config_set_client_auth_exit_code(&config, "rhsm");
+-
+-    /* we expect the same return value */
+-//    assert(exp_ret_val == rec_ret_val);
+-
+     return 0;
+ }
+ ]])
+@@ -1208,8 +1052,6 @@ AT_TESTFUN([ureport_server_config_load_basic_auth],
+ #include "libreport_curl.h"
+ #include "problem_data.h"
+ 
+-#define RHSM_WEB_SERVICE_URL "https://cert-api.access.redhat.com/rs/telemetry/abrt"
+-
+ int main(void)
+ {
+     g_verbose=3;
+@@ -1226,22 +1068,6 @@ int main(void)
+         ureport_server_config_destroy(&config);
+     }
+ 
+-    {
+-        struct ureport_server_config config;
+-        ureport_server_config_init(&config);
+-
+-        setenv("LIBREPORT_DEBUG_PLUGINS_CONF_DIR", "../../ureport-rhts-credentials/", 1);
+-
+-        ureport_server_config_load_basic_auth(&config, "rhts-credentials");
+-
+-        assert(strcmp(config.ur_username, "rhn-user-name") == 0);
+-        assert(strcmp(config.ur_password, "rhn-password") == 0);
+-        assert(strcmp(config.ur_url, RHSM_WEB_SERVICE_URL) == 0);
+-
+-        unsetenv("LIBREPORT_DEBUG_PLUGINS_CONF_DIR");
+-        ureport_server_config_destroy(&config);
+-    }
+-
+     {
+         pid_t pid = fork();
+         if (pid < 0)
+diff --git a/tests/ureport/rhsm/__init__.py b/tests/ureport/rhsm/__init__.py
+deleted file mode 100644
+index e69de29..0000000
+diff --git a/tests/ureport/rhsm/config.py b/tests/ureport/rhsm/config.py
+deleted file mode 100644
+index 44483d8..0000000
+--- a/tests/ureport/rhsm/config.py
++++ /dev/null
+@@ -1,8 +0,0 @@
+-import os
+-
+-def initConfig():
+-    return myConfig()
+-
+-class myConfig():
+-    def get(self, key, value):
+-        return os.path.abspath("../../ureport/certs/correct")

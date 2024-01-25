@@ -1,0 +1,26 @@
+From 570496fa4d39fd5eaa6216c7962c3875794571c2 Mon Sep 17 00:00:00 2001
+From: Martin Kutlak <mkutlak@redhat.com>
+Date: Mon, 20 Aug 2018 16:13:15 +0200
+Subject: [PATCH] coverity: Check null pointer before dereferencing it #def35
+
+Signed-off-by: Martin Kutlak <mkutlak@redhat.com>
+---
+ src/lib/xatonum.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/lib/xatonum.c b/src/lib/xatonum.c
+index 510d7667..8381ec37 100644
+--- a/src/lib/xatonum.c
++++ b/src/lib/xatonum.c
+@@ -96,7 +96,7 @@ int xatoi_positive(const char *numstr)
+ 
+ int try_atoi(const char *numstr, int *value)
+ {
+-    if (*numstr != '-')
++    if (numstr != NULL && *numstr != '-')
+         return try_atoi_positive(numstr, value);
+ 
+     unsigned tmp;
+-- 
+2.17.1
+

@@ -1,0 +1,53 @@
+From 1aa9e3a987439fd4435b40b9c7f56d063097f980 Mon Sep 17 00:00:00 2001
+From: Martin Kutlak <mkutlak@redhat.com>
+Date: Thu, 3 Jan 2019 16:32:00 +0100
+Subject: [PATCH] bugzilla: change the default bugzilla group
+
+Changes the default bugzilla group to redhat and also makes the
+reported bugs private by default.
+
+Related to rhbz#1660449
+
+Signed-off-by: Martin Kutlak <mkutlak@redhat.com>
+---
+ configure.ac              | 6 +++---
+ src/plugins/bugzilla.conf | 4 ++--
+ 2 files changed, 5 insertions(+), 5 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index feafc28e..ce453895 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -92,14 +92,14 @@ AC_PATH_PROG([XMLRPC], [xmlrpc-c-config], [no])
+ AC_ARG_WITH([redhatbugzillacreateprivate],
+             AS_HELP_STRING([--with-redhatbugzillacreateprivate="yes/no"],
+                            [Whether the Red Hat Bugzilla plugin should open
+-                            bugs private by default ("no")]),
+-            [], [with_redhatbugzillacreateprivate="no"])
++                            bugs private by default ("yes")]),
++            [], [with_redhatbugzillacreateprivate="yes"])
+ AC_SUBST([RED_HAT_BUGZILLA_CREATE_PRIVATE], [$with_redhatbugzillacreateprivate])
+ 
+ AC_ARG_WITH([redhatbugzillaprivategroups],
+             AS_HELP_STRING([--with-redhatbugzillaprivategroups="CSV"],
+                            [Name of groups separated by comma]),
+-            [], [with_redhatbugzillaprivategroups="fedora_contrib_private"])
++            [], [with_redhatbugzillaprivategroups="redhat"])
+ AC_SUBST([RED_HAT_BUGZILLA_PRIVATE_GROUPS], [$with_redhatbugzillaprivategroups])
+ 
+ 
+diff --git a/src/plugins/bugzilla.conf b/src/plugins/bugzilla.conf
+index a7727392..dbbbd05c 100644
+--- a/src/plugins/bugzilla.conf
++++ b/src/plugins/bugzilla.conf
+@@ -22,5 +22,5 @@ Password =
+ DontMatchComponents = selinux-policy
+ 
+ # for more info about these settings see: https://github.com/abrt/abrt/wiki/FAQ#creating-private-bugzilla-tickets
+-# CreatePrivate = no
+-# PrivateGroups = fedora_contrib_private
++# CreatePrivate = yes
++# PrivateGroups = redhat
+-- 
+2.21.0
+

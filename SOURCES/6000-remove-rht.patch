@@ -1,0 +1,726 @@
+From 9f1faa96e2175b642022b6a0d61ed35d83a32758 Mon Sep 17 00:00:00 2001
+From: Louis Abel <label@rockylinux.org>
+Date: Tue, 19 Apr 2022 19:55:59 -0700
+Subject: [PATCH] remove rht
+
+---
+ src/plugins/Makefile.am           |  33 ---
+ src/plugins/Makefile.am.orig      | 345 ++++++++++++++++++++++++++++++
+ src/plugins/Makefile.in           | 112 +---------
+ src/plugins/report_RHTSupport.xml |  32 +--
+ 4 files changed, 369 insertions(+), 153 deletions(-)
+ create mode 100644 src/plugins/Makefile.am.orig
+
+diff --git a/src/plugins/Makefile.am b/src/plugins/Makefile.am
+index b228602..2a289e7 100644
+--- a/src/plugins/Makefile.am
++++ b/src/plugins/Makefile.am
+@@ -17,7 +17,6 @@ reporters_bin +=  reporter-ureport
+ endif
+ 
+ bin_PROGRAMS = $(reporters_bin) \
+-    reporter-rhtsupport \
+     reporter-kerneloops \
+     reporter-upload \
+     reporter-mailx \
+@@ -56,7 +55,6 @@ endif
+ 
+ defaultreportpluginsconfdir = $(DEFAULT_REPORT_PLUGINS_CONF_DIR)
+ dist_defaultreportpluginsconf_DATA = $(reporters_plugin_conf) \
+-    rhtsupport.conf \
+     mailx.conf \
+     upload.conf \
+     ureport.conf
+@@ -88,8 +86,6 @@ endif
+ dist_events_DATA = $(reporters_events) \
+     report_Logger.xml \
+     report_Mailx.xml \
+-    report_RHTSupport.xml \
+-    report_RHTSupport_AddData.xml \
+     report_Kerneloops.xml \
+     report_Uploader.xml \
+     report_EmergencyAnalysis.xml
+@@ -105,7 +101,6 @@ eventsdefdir = $(EVENTS_DEFINITION_DIR)
+ dist_eventsdef_DATA = \
+     mailx_event.conf \
+     print_event.conf \
+-    rhtsupport_event.conf \
+     uploader_event.conf \
+     emergencyanalysis_event.conf \
+     centos_report_event.conf
+@@ -129,8 +124,6 @@ EXTRA_DIST = $(reporters_extra_dist) \
+     report_Logger.conf \
+     report_Logger.xml.in \
+     report_Mailx.xml.in \
+-    report_RHTSupport.xml.in \
+-    report_RHTSupport_AddData.xml.in \
+     report_Kerneloops.xml.in \
+     report_Uploader.xml.in \
+     report_EmergencyAnalysis.xml.in
+@@ -185,32 +178,6 @@ reporter_mantisbt_LDADD = \
+     ../lib/libreport.la
+ endif
+ 
+-reporter_rhtsupport_SOURCES = \
+-    abrt_rh_support.h abrt_rh_support.c \
+-    reporter-rhtsupport.h \
+-    reporter-rhtsupport-parse.c \
+-    reporter-rhtsupport.c
+-reporter_rhtsupport_CPPFLAGS = \
+-    -I$(srcdir)/../include \
+-    -I$(srcdir)/../lib \
+-    -DBIN_DIR=\"$(bindir)\" \
+-    -DCONF_DIR=\"$(CONF_DIR)\" \
+-    -DLOCALSTATEDIR='"$(localstatedir)"' \
+-    -DDEBUG_DUMPS_DIR=\"$(DEBUG_DUMPS_DIR)\" \
+-    -DDEBUG_INFO_DIR=\"$(DEBUG_INFO_DIR)\" \
+-    -DPLUGINS_LIB_DIR=\"$(PLUGINS_LIB_DIR)\" \
+-    -DPLUGINS_CONF_DIR=\"$(REPORT_PLUGINS_CONF_DIR)\" \
+-    -DLARGE_DATA_TMP_DIR=\"$(LARGE_DATA_TMP_DIR)\" \
+-    $(GLIB_CFLAGS) \
+-    $(LIBREPORT_CFLAGS) \
+-    $(LIBXML_CFLAGS) \
+-    -D_GNU_SOURCE
+-reporter_rhtsupport_LDADD = \
+-    $(GLIB_LIBS) \
+-    $(LIBXML_LIBS) \
+-    ../lib/libreport-web.la \
+-    ../lib/libreport.la
+-
+ reporter_upload_SOURCES = \
+     reporter-upload.c
+ reporter_upload_CPPFLAGS = \
+diff --git a/src/plugins/Makefile.am.orig b/src/plugins/Makefile.am.orig
+new file mode 100644
+index 0000000..b228602
+--- /dev/null
++++ b/src/plugins/Makefile.am.orig
+@@ -0,0 +1,345 @@
++pluginslibdir = $(PLUGINS_LIB_DIR)
++
++reporters_bin =
++if BUILD_BUGZILLA
++reporters_bin += \
++    reporter-bugzilla \
++    report
++endif
++
++if BUILD_MANTISBT
++reporters_bin += \
++    reporter-mantisbt
++endif
++
++if BUILD_UREPORT
++reporters_bin +=  reporter-ureport
++endif
++
++bin_PROGRAMS = $(reporters_bin) \
++    reporter-rhtsupport \
++    reporter-kerneloops \
++    reporter-upload \
++    reporter-mailx \
++    reporter-print \
++    reporter-systemd-journal
++
++pluginsconfdir = $(PLUGINS_CONF_DIR)
++
++reportpluginsconfdir = $(REPORT_PLUGINS_CONF_DIR)
++
++if ENABLE_IMPORT_RHTSUPPORT_CERT
++libreportconfdir = $(CONF_DIR)
++dist_libreportconf_DATA = \
++    cert-api.access.redhat.com.pem
++endif
++
++reporters_plugin_conf =
++reporters_plugin_format_conf =
++if BUILD_BUGZILLA
++reporters_plugin_conf += bugzilla.conf
++reporters_plugin_format_conf += bugzilla_format.conf \
++    bugzilla_formatdup.conf \
++    bugzilla_format_analyzer_libreport.conf \
++    bugzilla_format_kernel.conf \
++    bugzilla_format_anaconda.conf \
++    bugzilla_formatdup_anaconda.conf
++endif
++
++if BUILD_MANTISBT
++reporters_plugin_conf += mantisbt.conf
++reporters_plugin_format_conf += mantisbt_format.conf \
++    mantisbt_formatdup.conf \
++    mantisbt_format_analyzer_libreport.conf \
++    mantisbt_formatdup_analyzer_libreport.conf
++endif
++
++defaultreportpluginsconfdir = $(DEFAULT_REPORT_PLUGINS_CONF_DIR)
++dist_defaultreportpluginsconf_DATA = $(reporters_plugin_conf) \
++    rhtsupport.conf \
++    mailx.conf \
++    upload.conf \
++    ureport.conf
++
++dist_reportpluginsconf_DATA = $(reporters_plugin_format_conf) \
++    $(dist_defaultreportpluginsconf_DATA)
++
++eventsdir = $(EVENTS_DIR)
++eventsconfdir = $(EVENTS_CONF_DIR)
++
++reporters_events =
++reporters_events_conf =
++if BUILD_BUGZILLA
++reporters_events += report_Bugzilla.xml \
++                    watch_Bugzilla.xml
++reporters_events_conf += report_Bugzilla.conf
++endif
++
++if BUILD_MANTISBT
++reporters_events += report_CentOSBugTracker.xml
++
++reporters_events_conf += report_CentOSBugTracker.conf
++endif
++
++if BUILD_UREPORT
++reporters_events += report_uReport.xml
++endif
++
++dist_events_DATA = $(reporters_events) \
++    report_Logger.xml \
++    report_Mailx.xml \
++    report_RHTSupport.xml \
++    report_RHTSupport_AddData.xml \
++    report_Kerneloops.xml \
++    report_Uploader.xml \
++    report_EmergencyAnalysis.xml
++
++dist_eventsconf_DATA = $(reporters_events_conf) \
++    report_Logger.conf \
++    report_Uploader.conf
++
++@INTLTOOL_XML_RULE@
++
++eventsdefdir = $(EVENTS_DEFINITION_DIR)
++
++dist_eventsdef_DATA = \
++    mailx_event.conf \
++    print_event.conf \
++    rhtsupport_event.conf \
++    uploader_event.conf \
++    emergencyanalysis_event.conf \
++    centos_report_event.conf
++
++reporters_extra_dist =
++if BUILD_BUGZILLA
++dist_eventsdef_DATA += bugzilla_event.conf bugzilla_anaconda_event.conf
++reporters_extra_dist += report_Bugzilla.xml.in.in report_Bugzilla.conf \
++                        watch_Bugzilla.xml.in
++endif
++
++if BUILD_UREPORT
++reporters_extra_dist += report_uReport.xml.in
++endif
++
++if BUILD_MANTISBT
++reporters_extra_dist += report_CentOSBugTracker.xml.in
++endif
++
++EXTRA_DIST = $(reporters_extra_dist) \
++    report_Logger.conf \
++    report_Logger.xml.in \
++    report_Mailx.xml.in \
++    report_RHTSupport.xml.in \
++    report_RHTSupport_AddData.xml.in \
++    report_Kerneloops.xml.in \
++    report_Uploader.xml.in \
++    report_EmergencyAnalysis.xml.in
++
++$(DESTDIR)/$(DEBUG_INFO_DIR):
++	$(mkdir_p) '$@'
++
++if BUILD_BUGZILLA
++reporter_bugzilla_SOURCES = \
++    reporter-bugzilla.c rhbz.c rhbz.h
++reporter_bugzilla_CPPFLAGS = \
++    -I$(srcdir)/../include \
++    -I$(srcdir)/../lib \
++    -DBIN_DIR=\"$(bindir)\" \
++    -DCONF_DIR=\"$(CONF_DIR)\" \
++    -DLOCALSTATEDIR='"$(localstatedir)"' \
++    -DDEBUG_DUMPS_DIR=\"$(DEBUG_DUMPS_DIR)\" \
++    -DDEBUG_INFO_DIR=\"$(DEBUG_INFO_DIR)\" \
++    -DPLUGINS_LIB_DIR=\"$(PLUGINS_LIB_DIR)\" \
++    -DPLUGINS_CONF_DIR=\"$(REPORT_PLUGINS_CONF_DIR)\" \
++    $(GLIB_CFLAGS) \
++    $(LIBREPORT_CFLAGS) \
++    $(XMLRPC_CFLAGS) $(XMLRPC_CLIENT_CFLAGS) \
++    -D_GNU_SOURCE
++reporter_bugzilla_LDADD = \
++    $(GLIB_LIBS) \
++    $(XMLRPC_LIBS) $(XMLRPC_CLIENT_LIBS) \
++    ../lib/libreport-web.la \
++    ../lib/libreport.la
++endif
++
++if BUILD_MANTISBT
++reporter_mantisbt_SOURCES = \
++    reporter-mantisbt.c mantisbt.c mantisbt.h
++reporter_mantisbt_CPPFLAGS = \
++    -I$(srcdir)/../include \
++    -I$(srcdir)/../lib \
++    -DBIN_DIR=\"$(bindir)\" \
++    -DCONF_DIR=\"$(CONF_DIR)\" \
++    -DLOCALSTATEDIR='"$(localstatedir)"' \
++    -DDEBUG_DUMPS_DIR=\"$(DEBUG_DUMPS_DIR)\" \
++    -DDEBUG_INFO_DIR=\"$(DEBUG_INFO_DIR)\" \
++    -DPLUGINS_LIB_DIR=\"$(PLUGINS_LIB_DIR)\" \
++    -DPLUGINS_CONF_DIR=\"$(REPORT_PLUGINS_CONF_DIR)\" \
++    $(GLIB_CFLAGS) \
++    $(LIBREPORT_CFLAGS) \
++    $(LIBXML_CFLAGS) \
++    -D_GNU_SOURCE
++reporter_mantisbt_LDADD = \
++    $(GLIB_LIBS) \
++    ../lib/libreport-web.la \
++    ../lib/libreport.la
++endif
++
++reporter_rhtsupport_SOURCES = \
++    abrt_rh_support.h abrt_rh_support.c \
++    reporter-rhtsupport.h \
++    reporter-rhtsupport-parse.c \
++    reporter-rhtsupport.c
++reporter_rhtsupport_CPPFLAGS = \
++    -I$(srcdir)/../include \
++    -I$(srcdir)/../lib \
++    -DBIN_DIR=\"$(bindir)\" \
++    -DCONF_DIR=\"$(CONF_DIR)\" \
++    -DLOCALSTATEDIR='"$(localstatedir)"' \
++    -DDEBUG_DUMPS_DIR=\"$(DEBUG_DUMPS_DIR)\" \
++    -DDEBUG_INFO_DIR=\"$(DEBUG_INFO_DIR)\" \
++    -DPLUGINS_LIB_DIR=\"$(PLUGINS_LIB_DIR)\" \
++    -DPLUGINS_CONF_DIR=\"$(REPORT_PLUGINS_CONF_DIR)\" \
++    -DLARGE_DATA_TMP_DIR=\"$(LARGE_DATA_TMP_DIR)\" \
++    $(GLIB_CFLAGS) \
++    $(LIBREPORT_CFLAGS) \
++    $(LIBXML_CFLAGS) \
++    -D_GNU_SOURCE
++reporter_rhtsupport_LDADD = \
++    $(GLIB_LIBS) \
++    $(LIBXML_LIBS) \
++    ../lib/libreport-web.la \
++    ../lib/libreport.la
++
++reporter_upload_SOURCES = \
++    reporter-upload.c
++reporter_upload_CPPFLAGS = \
++    -I$(srcdir)/../include \
++    -I$(srcdir)/../lib \
++    -DBIN_DIR=\"$(bindir)\" \
++    -DCONF_DIR=\"$(CONF_DIR)\" \
++    -DLOCALSTATEDIR='"$(localstatedir)"' \
++    -DDEBUG_DUMPS_DIR=\"$(DEBUG_DUMPS_DIR)\" \
++    -DDEBUG_INFO_DIR=\"$(DEBUG_INFO_DIR)\" \
++    -DPLUGINS_LIB_DIR=\"$(PLUGINS_LIB_DIR)\" \
++    -DPLUGINS_CONF_DIR=\"$(REPORT_PLUGINS_CONF_DIR)\" \
++    -DLARGE_DATA_TMP_DIR=\"$(LARGE_DATA_TMP_DIR)\" \
++    $(GLIB_CFLAGS) \
++    $(CURL_CFLAGS) \
++    $(LIBREPORT_CFLAGS) \
++    -D_GNU_SOURCE
++reporter_upload_LDADD = \
++    $(GLIB_LIBS) \
++    ../lib/libreport-web.la \
++    ../lib/libreport.la
++
++reporter_kerneloops_SOURCES = \
++    reporter-kerneloops.c
++reporter_kerneloops_CPPFLAGS = \
++    -I$(srcdir)/../include \
++    -I$(srcdir)/../lib \
++    -DBIN_DIR=\"$(bindir)\" \
++    -DLOCALSTATEDIR='"$(localstatedir)"' \
++    -DDEBUG_DUMPS_DIR=\"$(DEBUG_DUMPS_DIR)\" \
++    -DDEBUG_INFO_DIR=\"$(DEBUG_INFO_DIR)\" \
++    -DPLUGINS_LIB_DIR=\"$(PLUGINS_LIB_DIR)\" \
++    -DPLUGINS_CONF_DIR=\"$(REPORT_PLUGINS_CONF_DIR)\" \
++    $(GLIB_CFLAGS) \
++    $(LIBREPORT_CFLAGS) \
++    -D_GNU_SOURCE
++reporter_kerneloops_LDADD = \
++    ../lib/libreport-web.la \
++    ../lib/libreport.la
++
++reporter_mailx_SOURCES = \
++    reporter-mailx.c
++reporter_mailx_CPPFLAGS = \
++    -I$(srcdir)/../libreport/src/include/ -I$(srcdir)/../include \
++    -I$(srcdir)/../libreport/src/lib \
++    -I$(srcdir)/../lib \
++    -DBIN_DIR=\"$(bindir)\" \
++    -DCONF_DIR=\"$(CONF_DIR)\" \
++    -DLOCALSTATEDIR='"$(localstatedir)"' \
++    -DDEBUG_DUMPS_DIR=\"$(DEBUG_DUMPS_DIR)\" \
++    -DDEBUG_INFO_DIR=\"$(DEBUG_INFO_DIR)\" \
++    -DPLUGINS_LIB_DIR=\"$(PLUGINS_LIB_DIR)\" \
++    -DPLUGINS_CONF_DIR=\"$(REPORT_PLUGINS_CONF_DIR)\" \
++    $(GLIB_CFLAGS) \
++    $(LIBREPORT_CFLAGS) \
++    -D_GNU_SOURCE
++reporter_mailx_LDADD = \
++    ../lib/libreport.la
++
++reporter_print_SOURCES = \
++    reporter-print.c
++reporter_print_CPPFLAGS = \
++    -I$(srcdir)/../include \
++    -I$(srcdir)/../lib \
++    -DBIN_DIR=\"$(bindir)\" \
++    -DLOCALSTATEDIR='"$(localstatedir)"' \
++    -DDEBUG_DUMPS_DIR=\"$(DEBUG_DUMPS_DIR)\" \
++    -DDEBUG_INFO_DIR=\"$(DEBUG_INFO_DIR)\" \
++    -DPLUGINS_LIB_DIR=\"$(PLUGINS_LIB_DIR)\" \
++    -DPLUGINS_CONF_DIR=\"$(REPORT_PLUGINS_CONF_DIR)\" \
++    $(GLIB_CFLAGS) \
++    $(LIBREPORT_CFLAGS) \
++    -D_GNU_SOURCE
++reporter_print_LDADD = \
++    ../lib/libreport.la
++
++reporter_systemd_journal_SOURCES = \
++    reporter-systemd-journal.c
++reporter_systemd_journal_CPPFLAGS = \
++    -I$(srcdir)/../include \
++    -I$(srcdir)/../lib \
++    -DBIN_DIR=\"$(bindir)\" \
++    -DLOCALSTATEDIR='"$(localstatedir)"' \
++    -DDEBUG_DUMPS_DIR=\"$(DEBUG_DUMPS_DIR)\" \
++    -DDEBUG_INFO_DIR=\"$(DEBUG_INFO_DIR)\" \
++    -DPLUGINS_LIB_DIR=\"$(PLUGINS_LIB_DIR)\" \
++    -DPLUGINS_CONF_DIR=\"$(REPORT_PLUGINS_CONF_DIR)\" \
++    $(GLIB_CFLAGS) \
++    $(LIBREPORT_CFLAGS) \
++    -D_GNU_SOURCE
++reporter_systemd_journal_LDADD = \
++    ../lib/libreport.la \
++    $(JOURNAL_LIBS)
++
++if BUILD_BUGZILLA
++report_SOURCES = \
++    report.c
++report_CPPFLAGS = \
++    -I$(srcdir)/../include \
++    -I$(srcdir)/../lib \
++    -DBIN_DIR=\"$(bindir)\" \
++    -DCONF_DIR=\"$(CONF_DIR)\" \
++    -DLOCALSTATEDIR='"$(localstatedir)"' \
++    -DDEBUG_DUMPS_DIR=\"$(DEBUG_DUMPS_DIR)\" \
++    -DDEBUG_INFO_DIR=\"$(DEBUG_INFO_DIR)\" \
++    -DPLUGINS_LIB_DIR=\"$(PLUGINS_LIB_DIR)\" \
++    -DPLUGINS_CONF_DIR=\"$(REPORT_PLUGINS_CONF_DIR)\" \
++    $(GLIB_CFLAGS) \
++    $(LIBREPORT_CFLAGS) \
++    -D_GNU_SOURCE
++report_LDADD = \
++    ../lib/libreport.la
++endif
++
++if BUILD_UREPORT
++reporter_ureport_SOURCES = \
++    reporter-ureport.c
++reporter_ureport_CPPFLAGS = \
++    -I$(srcdir)/../include \
++    -I$(srcdir)/../lib \
++    $(GLIB_CFLAGS) \
++    $(LIBREPORT_CFLAGS) \
++    $(JSON_C_CFLAGS) \
++    -DPLUGINS_CONF_DIR=\"$(REPORT_PLUGINS_CONF_DIR)\" \
++    -D_GNU_SOURCE
++reporter_ureport_LDADD = \
++    $(JSON_C_LIBS) \
++    ../lib/libreport.la \
++    ../lib/libreport-web.la
++endif
++
++DEFS = -DLOCALEDIR=\"$(localedir)\" @DEFS@
+diff --git a/src/plugins/Makefile.in b/src/plugins/Makefile.in
+index dbc7057..269727a 100644
+--- a/src/plugins/Makefile.in
++++ b/src/plugins/Makefile.in
+@@ -97,7 +97,7 @@ host_triplet = @host@
+ @BUILD_MANTISBT_TRUE@    reporter-mantisbt
+ 
+ @BUILD_UREPORT_TRUE@am__append_3 = reporter-ureport
+-bin_PROGRAMS = $(am__EXEEXT_4) reporter-rhtsupport$(EXEEXT) \
++bin_PROGRAMS = $(am__EXEEXT_4) \
+ 	reporter-kerneloops$(EXEEXT) reporter-upload$(EXEEXT) \
+ 	reporter-mailx$(EXEEXT) reporter-print$(EXEEXT) \
+ 	reporter-systemd-journal$(EXEEXT)
+@@ -201,14 +201,6 @@ reporter_mantisbt_OBJECTS = $(am_reporter_mantisbt_OBJECTS)
+ am_reporter_print_OBJECTS = reporter_print-reporter-print.$(OBJEXT)
+ reporter_print_OBJECTS = $(am_reporter_print_OBJECTS)
+ reporter_print_DEPENDENCIES = ../lib/libreport.la
+-am_reporter_rhtsupport_OBJECTS =  \
+-	reporter_rhtsupport-abrt_rh_support.$(OBJEXT) \
+-	reporter_rhtsupport-reporter-rhtsupport-parse.$(OBJEXT) \
+-	reporter_rhtsupport-reporter-rhtsupport.$(OBJEXT)
+-reporter_rhtsupport_OBJECTS = $(am_reporter_rhtsupport_OBJECTS)
+-reporter_rhtsupport_DEPENDENCIES = $(am__DEPENDENCIES_1) \
+-	$(am__DEPENDENCIES_1) ../lib/libreport-web.la \
+-	../lib/libreport.la
+ am_reporter_systemd_journal_OBJECTS =  \
+ 	reporter_systemd_journal-reporter-systemd-journal.$(OBJEXT)
+ reporter_systemd_journal_OBJECTS =  \
+@@ -263,14 +255,13 @@ am__v_CCLD_1 =
+ SOURCES = $(report_SOURCES) $(reporter_bugzilla_SOURCES) \
+ 	$(reporter_kerneloops_SOURCES) $(reporter_mailx_SOURCES) \
+ 	$(reporter_mantisbt_SOURCES) $(reporter_print_SOURCES) \
+-	$(reporter_rhtsupport_SOURCES) \
+ 	$(reporter_systemd_journal_SOURCES) $(reporter_upload_SOURCES) \
+ 	$(reporter_ureport_SOURCES)
+ DIST_SOURCES = $(am__report_SOURCES_DIST) \
+ 	$(am__reporter_bugzilla_SOURCES_DIST) \
+ 	$(reporter_kerneloops_SOURCES) $(reporter_mailx_SOURCES) \
+ 	$(am__reporter_mantisbt_SOURCES_DIST) \
+-	$(reporter_print_SOURCES) $(reporter_rhtsupport_SOURCES) \
++	$(reporter_print_SOURCES) \
+ 	$(reporter_systemd_journal_SOURCES) $(reporter_upload_SOURCES) \
+ 	$(am__reporter_ureport_SOURCES_DIST)
+ am__can_run_installinfo = \
+@@ -279,7 +270,7 @@ am__can_run_installinfo = \
+     *) (install-info --version) >/dev/null 2>&1;; \
+   esac
+ am__dist_defaultreportpluginsconf_DATA_DIST = bugzilla.conf \
+-	mantisbt.conf rhtsupport.conf mailx.conf upload.conf \
++	mantisbt.conf mailx.conf upload.conf \
+ 	ureport.conf
+ am__vpath_adj_setup = srcdirstrip=`echo "$(srcdir)" | sed 's|.|.|g'`;
+ am__vpath_adj = case $$p in \
+@@ -310,17 +301,16 @@ am__uninstall_files_from_dir = { \
+   }
+ am__dist_events_DATA_DIST = report_Bugzilla.xml watch_Bugzilla.xml \
+ 	report_CentOSBugTracker.xml report_uReport.xml \
+-	report_Logger.xml report_Mailx.xml report_RHTSupport.xml \
+-	report_RHTSupport_AddData.xml report_Kerneloops.xml \
++	report_Logger.xml report_Mailx.xml \
++	report_Kerneloops.xml \
+ 	report_Uploader.xml report_EmergencyAnalysis.xml
+ am__dist_eventsconf_DATA_DIST = report_Bugzilla.conf \
+ 	report_CentOSBugTracker.conf report_Logger.conf \
+ 	report_Uploader.conf
+ am__dist_eventsdef_DATA_DIST = mailx_event.conf print_event.conf \
+-	rhtsupport_event.conf uploader_event.conf \
++	uploader_event.conf \
+ 	emergencyanalysis_event.conf centos_report_event.conf \
+ 	bugzilla_event.conf bugzilla_anaconda_event.conf
+-am__dist_libreportconf_DATA_DIST = cert-api.access.redhat.com.pem
+ am__dist_reportpluginsconf_DATA_DIST = bugzilla_format.conf \
+ 	bugzilla_formatdup.conf \
+ 	bugzilla_format_analyzer_libreport.conf \
+@@ -329,7 +319,7 @@ am__dist_reportpluginsconf_DATA_DIST = bugzilla_format.conf \
+ 	mantisbt_formatdup.conf \
+ 	mantisbt_format_analyzer_libreport.conf \
+ 	mantisbt_formatdup_analyzer_libreport.conf bugzilla.conf \
+-	mantisbt.conf rhtsupport.conf mailx.conf upload.conf \
++	mantisbt.conf mailx.conf upload.conf \
+ 	ureport.conf
+ DATA = $(dist_defaultreportpluginsconf_DATA) $(dist_events_DATA) \
+ 	$(dist_eventsconf_DATA) $(dist_eventsdef_DATA) \
+@@ -581,15 +571,11 @@ pluginslibdir = $(PLUGINS_LIB_DIR)
+ reporters_bin = $(am__append_1) $(am__append_2) $(am__append_3)
+ pluginsconfdir = $(PLUGINS_CONF_DIR)
+ reportpluginsconfdir = $(REPORT_PLUGINS_CONF_DIR)
+-@ENABLE_IMPORT_RHTSUPPORT_CERT_TRUE@libreportconfdir = $(CONF_DIR)
+-@ENABLE_IMPORT_RHTSUPPORT_CERT_TRUE@dist_libreportconf_DATA = \
+-@ENABLE_IMPORT_RHTSUPPORT_CERT_TRUE@    cert-api.access.redhat.com.pem
+ 
+ reporters_plugin_conf = $(am__append_4) $(am__append_6)
+ reporters_plugin_format_conf = $(am__append_5) $(am__append_7)
+ defaultreportpluginsconfdir = $(DEFAULT_REPORT_PLUGINS_CONF_DIR)
+ dist_defaultreportpluginsconf_DATA = $(reporters_plugin_conf) \
+-    rhtsupport.conf \
+     mailx.conf \
+     upload.conf \
+     ureport.conf
+@@ -604,8 +590,6 @@ reporters_events_conf = $(am__append_9) $(am__append_11)
+ dist_events_DATA = $(reporters_events) \
+     report_Logger.xml \
+     report_Mailx.xml \
+-    report_RHTSupport.xml \
+-    report_RHTSupport_AddData.xml \
+     report_Kerneloops.xml \
+     report_Uploader.xml \
+     report_EmergencyAnalysis.xml
+@@ -616,7 +600,7 @@ dist_eventsconf_DATA = $(reporters_events_conf) \
+ 
+ eventsdefdir = $(EVENTS_DEFINITION_DIR)
+ dist_eventsdef_DATA = mailx_event.conf print_event.conf \
+-	rhtsupport_event.conf uploader_event.conf \
++	uploader_event.conf \
+ 	emergencyanalysis_event.conf centos_report_event.conf \
+ 	$(am__append_13)
+ reporters_extra_dist = $(am__append_14) $(am__append_15) \
+@@ -625,8 +609,6 @@ EXTRA_DIST = $(reporters_extra_dist) \
+     report_Logger.conf \
+     report_Logger.xml.in \
+     report_Mailx.xml.in \
+-    report_RHTSupport.xml.in \
+-    report_RHTSupport_AddData.xml.in \
+     report_Kerneloops.xml.in \
+     report_Uploader.xml.in \
+     report_EmergencyAnalysis.xml.in
+@@ -678,34 +660,6 @@ EXTRA_DIST = $(reporters_extra_dist) \
+ @BUILD_MANTISBT_TRUE@    ../lib/libreport-web.la \
+ @BUILD_MANTISBT_TRUE@    ../lib/libreport.la
+ 
+-reporter_rhtsupport_SOURCES = \
+-    abrt_rh_support.h abrt_rh_support.c \
+-    reporter-rhtsupport.h \
+-    reporter-rhtsupport-parse.c \
+-    reporter-rhtsupport.c
+-
+-reporter_rhtsupport_CPPFLAGS = \
+-    -I$(srcdir)/../include \
+-    -I$(srcdir)/../lib \
+-    -DBIN_DIR=\"$(bindir)\" \
+-    -DCONF_DIR=\"$(CONF_DIR)\" \
+-    -DLOCALSTATEDIR='"$(localstatedir)"' \
+-    -DDEBUG_DUMPS_DIR=\"$(DEBUG_DUMPS_DIR)\" \
+-    -DDEBUG_INFO_DIR=\"$(DEBUG_INFO_DIR)\" \
+-    -DPLUGINS_LIB_DIR=\"$(PLUGINS_LIB_DIR)\" \
+-    -DPLUGINS_CONF_DIR=\"$(REPORT_PLUGINS_CONF_DIR)\" \
+-    -DLARGE_DATA_TMP_DIR=\"$(LARGE_DATA_TMP_DIR)\" \
+-    $(GLIB_CFLAGS) \
+-    $(LIBREPORT_CFLAGS) \
+-    $(LIBXML_CFLAGS) \
+-    -D_GNU_SOURCE
+-
+-reporter_rhtsupport_LDADD = \
+-    $(GLIB_LIBS) \
+-    $(LIBXML_LIBS) \
+-    ../lib/libreport-web.la \
+-    ../lib/libreport.la
+-
+ reporter_upload_SOURCES = \
+     reporter-upload.c
+ 
+@@ -956,10 +910,6 @@ reporter-print$(EXEEXT): $(reporter_print_OBJECTS) $(reporter_print_DEPENDENCIES
+ 	@rm -f reporter-print$(EXEEXT)
+ 	$(AM_V_CCLD)$(LINK) $(reporter_print_OBJECTS) $(reporter_print_LDADD) $(LIBS)
+ 
+-reporter-rhtsupport$(EXEEXT): $(reporter_rhtsupport_OBJECTS) $(reporter_rhtsupport_DEPENDENCIES) $(EXTRA_reporter_rhtsupport_DEPENDENCIES) 
+-	@rm -f reporter-rhtsupport$(EXEEXT)
+-	$(AM_V_CCLD)$(LINK) $(reporter_rhtsupport_OBJECTS) $(reporter_rhtsupport_LDADD) $(LIBS)
+-
+ reporter-systemd-journal$(EXEEXT): $(reporter_systemd_journal_OBJECTS) $(reporter_systemd_journal_DEPENDENCIES) $(EXTRA_reporter_systemd_journal_DEPENDENCIES) 
+ 	@rm -f reporter-systemd-journal$(EXEEXT)
+ 	$(AM_V_CCLD)$(LINK) $(reporter_systemd_journal_OBJECTS) $(reporter_systemd_journal_LDADD) $(LIBS)
+@@ -986,9 +936,6 @@ distclean-compile:
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/reporter_mantisbt-mantisbt.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/reporter_mantisbt-reporter-mantisbt.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/reporter_print-reporter-print.Po@am__quote@
+-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/reporter_rhtsupport-abrt_rh_support.Po@am__quote@
+-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/reporter_rhtsupport-reporter-rhtsupport-parse.Po@am__quote@
+-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/reporter_rhtsupport-reporter-rhtsupport.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/reporter_systemd_journal-reporter-systemd-journal.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/reporter_upload-reporter-upload.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/reporter_ureport-reporter-ureport.Po@am__quote@
+@@ -1125,49 +1072,6 @@ reporter_print-reporter-print.obj: reporter-print.c
+ @AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='reporter-print.c' object='reporter_print-reporter-print.obj' libtool=no @AMDEPBACKSLASH@
+ @AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+ @am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(reporter_print_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o reporter_print-reporter-print.obj `if test -f 'reporter-print.c'; then $(CYGPATH_W) 'reporter-print.c'; else $(CYGPATH_W) '$(srcdir)/reporter-print.c'; fi`
+-
+-reporter_rhtsupport-abrt_rh_support.o: abrt_rh_support.c
+-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(reporter_rhtsupport_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT reporter_rhtsupport-abrt_rh_support.o -MD -MP -MF $(DEPDIR)/reporter_rhtsupport-abrt_rh_support.Tpo -c -o reporter_rhtsupport-abrt_rh_support.o `test -f 'abrt_rh_support.c' || echo '$(srcdir)/'`abrt_rh_support.c
+-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/reporter_rhtsupport-abrt_rh_support.Tpo $(DEPDIR)/reporter_rhtsupport-abrt_rh_support.Po
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='abrt_rh_support.c' object='reporter_rhtsupport-abrt_rh_support.o' libtool=no @AMDEPBACKSLASH@
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(reporter_rhtsupport_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o reporter_rhtsupport-abrt_rh_support.o `test -f 'abrt_rh_support.c' || echo '$(srcdir)/'`abrt_rh_support.c
+-
+-reporter_rhtsupport-abrt_rh_support.obj: abrt_rh_support.c
+-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(reporter_rhtsupport_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT reporter_rhtsupport-abrt_rh_support.obj -MD -MP -MF $(DEPDIR)/reporter_rhtsupport-abrt_rh_support.Tpo -c -o reporter_rhtsupport-abrt_rh_support.obj `if test -f 'abrt_rh_support.c'; then $(CYGPATH_W) 'abrt_rh_support.c'; else $(CYGPATH_W) '$(srcdir)/abrt_rh_support.c'; fi`
+-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/reporter_rhtsupport-abrt_rh_support.Tpo $(DEPDIR)/reporter_rhtsupport-abrt_rh_support.Po
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='abrt_rh_support.c' object='reporter_rhtsupport-abrt_rh_support.obj' libtool=no @AMDEPBACKSLASH@
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(reporter_rhtsupport_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o reporter_rhtsupport-abrt_rh_support.obj `if test -f 'abrt_rh_support.c'; then $(CYGPATH_W) 'abrt_rh_support.c'; else $(CYGPATH_W) '$(srcdir)/abrt_rh_support.c'; fi`
+-
+-reporter_rhtsupport-reporter-rhtsupport-parse.o: reporter-rhtsupport-parse.c
+-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(reporter_rhtsupport_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT reporter_rhtsupport-reporter-rhtsupport-parse.o -MD -MP -MF $(DEPDIR)/reporter_rhtsupport-reporter-rhtsupport-parse.Tpo -c -o reporter_rhtsupport-reporter-rhtsupport-parse.o `test -f 'reporter-rhtsupport-parse.c' || echo '$(srcdir)/'`reporter-rhtsupport-parse.c
+-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/reporter_rhtsupport-reporter-rhtsupport-parse.Tpo $(DEPDIR)/reporter_rhtsupport-reporter-rhtsupport-parse.Po
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='reporter-rhtsupport-parse.c' object='reporter_rhtsupport-reporter-rhtsupport-parse.o' libtool=no @AMDEPBACKSLASH@
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(reporter_rhtsupport_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o reporter_rhtsupport-reporter-rhtsupport-parse.o `test -f 'reporter-rhtsupport-parse.c' || echo '$(srcdir)/'`reporter-rhtsupport-parse.c
+-
+-reporter_rhtsupport-reporter-rhtsupport-parse.obj: reporter-rhtsupport-parse.c
+-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(reporter_rhtsupport_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT reporter_rhtsupport-reporter-rhtsupport-parse.obj -MD -MP -MF $(DEPDIR)/reporter_rhtsupport-reporter-rhtsupport-parse.Tpo -c -o reporter_rhtsupport-reporter-rhtsupport-parse.obj `if test -f 'reporter-rhtsupport-parse.c'; then $(CYGPATH_W) 'reporter-rhtsupport-parse.c'; else $(CYGPATH_W) '$(srcdir)/reporter-rhtsupport-parse.c'; fi`
+-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/reporter_rhtsupport-reporter-rhtsupport-parse.Tpo $(DEPDIR)/reporter_rhtsupport-reporter-rhtsupport-parse.Po
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='reporter-rhtsupport-parse.c' object='reporter_rhtsupport-reporter-rhtsupport-parse.obj' libtool=no @AMDEPBACKSLASH@
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(reporter_rhtsupport_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o reporter_rhtsupport-reporter-rhtsupport-parse.obj `if test -f 'reporter-rhtsupport-parse.c'; then $(CYGPATH_W) 'reporter-rhtsupport-parse.c'; else $(CYGPATH_W) '$(srcdir)/reporter-rhtsupport-parse.c'; fi`
+-
+-reporter_rhtsupport-reporter-rhtsupport.o: reporter-rhtsupport.c
+-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(reporter_rhtsupport_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT reporter_rhtsupport-reporter-rhtsupport.o -MD -MP -MF $(DEPDIR)/reporter_rhtsupport-reporter-rhtsupport.Tpo -c -o reporter_rhtsupport-reporter-rhtsupport.o `test -f 'reporter-rhtsupport.c' || echo '$(srcdir)/'`reporter-rhtsupport.c
+-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/reporter_rhtsupport-reporter-rhtsupport.Tpo $(DEPDIR)/reporter_rhtsupport-reporter-rhtsupport.Po
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='reporter-rhtsupport.c' object='reporter_rhtsupport-reporter-rhtsupport.o' libtool=no @AMDEPBACKSLASH@
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(reporter_rhtsupport_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o reporter_rhtsupport-reporter-rhtsupport.o `test -f 'reporter-rhtsupport.c' || echo '$(srcdir)/'`reporter-rhtsupport.c
+-
+-reporter_rhtsupport-reporter-rhtsupport.obj: reporter-rhtsupport.c
+-@am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(reporter_rhtsupport_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT reporter_rhtsupport-reporter-rhtsupport.obj -MD -MP -MF $(DEPDIR)/reporter_rhtsupport-reporter-rhtsupport.Tpo -c -o reporter_rhtsupport-reporter-rhtsupport.obj `if test -f 'reporter-rhtsupport.c'; then $(CYGPATH_W) 'reporter-rhtsupport.c'; else $(CYGPATH_W) '$(srcdir)/reporter-rhtsupport.c'; fi`
+-@am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/reporter_rhtsupport-reporter-rhtsupport.Tpo $(DEPDIR)/reporter_rhtsupport-reporter-rhtsupport.Po
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	$(AM_V_CC)source='reporter-rhtsupport.c' object='reporter_rhtsupport-reporter-rhtsupport.obj' libtool=no @AMDEPBACKSLASH@
+-@AMDEP_TRUE@@am__fastdepCC_FALSE@	DEPDIR=$(DEPDIR) $(CCDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+-@am__fastdepCC_FALSE@	$(AM_V_CC@am__nodep@)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(reporter_rhtsupport_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o reporter_rhtsupport-reporter-rhtsupport.obj `if test -f 'reporter-rhtsupport.c'; then $(CYGPATH_W) 'reporter-rhtsupport.c'; else $(CYGPATH_W) '$(srcdir)/reporter-rhtsupport.c'; fi`
+-
+ reporter_systemd_journal-reporter-systemd-journal.o: reporter-systemd-journal.c
+ @am__fastdepCC_TRUE@	$(AM_V_CC)$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(reporter_systemd_journal_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -MT reporter_systemd_journal-reporter-systemd-journal.o -MD -MP -MF $(DEPDIR)/reporter_systemd_journal-reporter-systemd-journal.Tpo -c -o reporter_systemd_journal-reporter-systemd-journal.o `test -f 'reporter-systemd-journal.c' || echo '$(srcdir)/'`reporter-systemd-journal.c
+ @am__fastdepCC_TRUE@	$(AM_V_at)$(am__mv) $(DEPDIR)/reporter_systemd_journal-reporter-systemd-journal.Tpo $(DEPDIR)/reporter_systemd_journal-reporter-systemd-journal.Po
+diff --git a/src/plugins/report_RHTSupport.xml b/src/plugins/report_RHTSupport.xml
+index 112c626..6297c1a 100644
+--- a/src/plugins/report_RHTSupport.xml
++++ b/src/plugins/report_RHTSupport.xml
+@@ -272,21 +272,21 @@
+                 <label xml:lang="uk">Надіслати uReport</label>
+                 <label xml:lang="zh_CN">提交 uReport</label>
+                 <label xml:lang="zh_TW">提交 uReport</label>
+-                <note-html>Submit &lt;a href="https://access.redhat.com/articles/642323"&gt;micro-report&lt;/a&gt; when creating a new case.</note-html>
+-                <note-html xml:lang="ca">Publica el &lt;a href="https://access.redhat.com/articles/642323"&gt;micro-informe&lt;/a&gt; quan es creï un nou cas.</note-html>
+-                <note-html xml:lang="cs">Při vytváření nového případu odeslat &lt;a href="https://access.redhat.com/articles/642323"&gt;mikro-report&lt;/a&gt;</note-html>
+-                <note-html xml:lang="de">&lt;a href="https://access.redhat.com/articles/642323"&gt;Micro-Bericht&lt;/a&gt; übertragen, wenn neuer Fehlerbericht erstellt wird.</note-html>
+-                <note-html xml:lang="es">Enviar &lt;a href="https://access.redhat.com/articles/642323"&gt;uReport&lt;/a&gt; al crear un nuevo caso.</note-html>
+-                <note-html xml:lang="fr">Soummetre &lt;a href="https://access.redhat.com/articles/642323"&gt;micro-report&lt;/a&gt; lors de la création d'un nouveau dossier.</note-html>
+-                <note-html xml:lang="it">Invia &lt;a href="https://access.redhat.com/articles/642323"&gt;micro-report&lt;/a&gt; quando crei un nuovo caso.</note-html>
+-                <note-html xml:lang="nl">Dien &lt;a href="https://access.redhat.com/articles/642323"&gt;micro-report&lt;/a&gt; in als een nieuwe bug aangemaakt wordt.</note-html>
+-                <note-html xml:lang="pl">Wyślij &lt;a href="https://access.redhat.com/articles/642323"&gt;mikroraport&lt;/a&gt; podczas tworzenia nowego przypadku.</note-html>
+-                <note-html xml:lang="pt_BR">Enviar &lt;a href="https://access.redhat.com/articles/642323"&gt;micro-report&lt;/a&gt; quando criar um novo caso. </note-html>
+-                <note-html xml:lang="ru">Отправлять &lt;a href="https://access.redhat.com/articles/642323"&gt;микроотчет&lt;/a&gt; при создании нового запроса.</note-html>
+-                <note-html xml:lang="sv">Skicka en &lt;a href="https://access.redhat.com/articles/642323"&gt;mikrorapport&lt;/a&gt; när ett nytt ärende skapas.</note-html>
+-                <note-html xml:lang="uk">Надіслати &lt;a href="https://access.redhat.com/articles/642323"&gt;мікрозвіт&lt;/a&gt; під час створення нового запису випадку.</note-html>
+-                <note-html xml:lang="zh_CN">生成新问题单时才提交 &lt;a href="https://access.redhat.com/articles/642323"&gt;micro-report&lt;/a&gt;。</note-html>
+-                <note-html xml:lang="zh_TW">當建立新案例時提交 &lt;a href="https://access.redhat.com/articles/642323"&gt;micro-report&lt;/a&gt;。</note-html>
++                <note-html>Submit &lt;a href="https://openela.org"&gt;micro-report&lt;/a&gt; when creating a new case.</note-html>
++                <note-html xml:lang="ca">Publica el &lt;a href="https://openela.org"&gt;micro-informe&lt;/a&gt; quan es creï un nou cas.</note-html>
++                <note-html xml:lang="cs">Při vytváření nového případu odeslat &lt;a href="https://openela.org"&gt;mikro-report&lt;/a&gt;</note-html>
++                <note-html xml:lang="de">&lt;a href="https://openela.org"&gt;Micro-Bericht&lt;/a&gt; übertragen, wenn neuer Fehlerbericht erstellt wird.</note-html>
++                <note-html xml:lang="es">Enviar &lt;a href="https://openela.org"&gt;uReport&lt;/a&gt; al crear un nuevo caso.</note-html>
++                <note-html xml:lang="fr">Soummetre &lt;a href="https://openela.org"&gt;micro-report&lt;/a&gt; lors de la création d'un nouveau dossier.</note-html>
++                <note-html xml:lang="it">Invia &lt;a href="https://openela.org"&gt;micro-report&lt;/a&gt; quando crei un nuovo caso.</note-html>
++                <note-html xml:lang="nl">Dien &lt;a href="https://openela.org"&gt;micro-report&lt;/a&gt; in als een nieuwe bug aangemaakt wordt.</note-html>
++                <note-html xml:lang="pl">Wyślij &lt;a href="https://openela.org"&gt;mikroraport&lt;/a&gt; podczas tworzenia nowego przypadku.</note-html>
++                <note-html xml:lang="pt_BR">Enviar &lt;a href="https://openela.org"&gt;micro-report&lt;/a&gt; quando criar um novo caso. </note-html>
++                <note-html xml:lang="ru">Отправлять &lt;a href="https://openela.org"&gt;микроотчет&lt;/a&gt; при создании нового запроса.</note-html>
++                <note-html xml:lang="sv">Skicka en &lt;a href="https://openela.org"&gt;mikrorapport&lt;/a&gt; när ett nytt ärende skapas.</note-html>
++                <note-html xml:lang="uk">Надіслати &lt;a href="https://openela.org"&gt;мікрозвіт&lt;/a&gt; під час створення нового запису випадку.</note-html>
++                <note-html xml:lang="zh_CN">生成新问题单时才提交 &lt;a href="https://openela.org"&gt;micro-report&lt;/a&gt;。</note-html>
++                <note-html xml:lang="zh_TW">當建立新案例時提交 &lt;a href="https://openela.org"&gt;micro-report&lt;/a&gt;。</note-html>
+                 <default-value>yes</default-value>
+             </option>
+             <option type="text" name="RHTSupport_URL">
+@@ -570,4 +570,4 @@
+             </option>
+         </advanced-options>
+     </options>
+-</event>
+\ No newline at end of file
++</event>
+-- 
+2.35.1
+

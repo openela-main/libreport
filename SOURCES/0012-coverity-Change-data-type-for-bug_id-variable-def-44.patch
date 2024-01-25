@@ -1,0 +1,44 @@
+From 831f57740c054c4ee129e8de96c93c706c620382 Mon Sep 17 00:00:00 2001
+From: Martin Kutlak <mkutlak@redhat.com>
+Date: Mon, 20 Aug 2018 14:38:31 +0200
+Subject: [PATCH] coverity: Change data type for bug_id variable #def[44,43]
+
+If bug_id is an integer, it makes condition 'bug_id > INT_MAX' always evaluate False.
+
+It is changed to unsigned long because of strtoul (converts strings to unsigned long).
+
+Signed-off-by: Martin Kutlak <mkutlak@redhat.com>
+---
+ src/plugins/reporter-bugzilla.c | 2 +-
+ src/plugins/reporter-mantisbt.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+diff --git a/src/plugins/reporter-bugzilla.c b/src/plugins/reporter-bugzilla.c
+index 2922e8ac..d4d03f8e 100644
+--- a/src/plugins/reporter-bugzilla.c
++++ b/src/plugins/reporter-bugzilla.c
+@@ -628,7 +628,7 @@ int main(int argc, char **argv)
+     login(client, &rhbz);
+ 
+ 
+-    int bug_id = 0;
++    unsigned long bug_id = 0;
+ 
+     /* If REMOTE_RESULT contains "DUPLICATE 12345", we consider it a dup of 12345
+      * and won't search on bz server.
+diff --git a/src/plugins/reporter-mantisbt.c b/src/plugins/reporter-mantisbt.c
+index c2b0d0b4..67597d52 100644
+--- a/src/plugins/reporter-mantisbt.c
++++ b/src/plugins/reporter-mantisbt.c
+@@ -463,7 +463,7 @@ int main(int argc, char **argv)
+         exit(0);
+     }
+ 
+-     int bug_id = 0;
++     unsigned long bug_id = 0;
+ 
+     /* If REMOTE_RESULT contains "DUPLICATE 12345", we consider it a dup of 12345
+      * and won't search on MantisBT server.
+-- 
+2.17.1
+

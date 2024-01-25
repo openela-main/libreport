@@ -1,0 +1,31 @@
+From 79650f521dc70535bf731ae3139860aef3e301b0 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Wed, 18 Jul 2018 17:07:45 +0200
+Subject: [PATCH] coverity fix [#def6]
+
+libreport-2.9.5/src/gui-wizard-gtk/wizard.c:819:5: warning: 1st function call
+argument is an uninitialized value
+
+https://cov01.lab.eng.brq.redhat.com/el8-results/el8/libreport-2.9.5-2.el8+7/scan-results.html#def6
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/gui-wizard-gtk/wizard.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/src/gui-wizard-gtk/wizard.c b/src/gui-wizard-gtk/wizard.c
+index ea49a2ea..cb9ac5bb 100644
+--- a/src/gui-wizard-gtk/wizard.c
++++ b/src/gui-wizard-gtk/wizard.c
+@@ -760,7 +760,7 @@ static void tv_details_row_activated(
+                         GtkTreeViewColumn *column,
+                         gpointer           user_data)
+ {
+-    gchar *item_name;
++    gchar *item_name = NULL;
+     struct problem_item *item = get_current_problem_item_or_NULL(tree_view, &item_name);
+     if (!item || !(item->flags & CD_FLAG_TXT))
+         goto ret;
+-- 
+2.17.1
+

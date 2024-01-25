@@ -1,0 +1,66 @@
+From dfc340b695d047018d38090e24a501f7b0c0dad1 Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Tue, 28 Aug 2018 15:42:33 +0200
+Subject: [PATCH] replace all Fedora URLs by corresponding values for RHEL
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/plugins/report_EmergencyAnalysis.xml.in | 2 +-
+ src/plugins/report_uReport.xml.in           | 2 +-
+ src/plugins/reporter-ureport.c              | 2 +-
+ src/plugins/ureport.conf                    | 2 +-
+ 4 files changed, 4 insertions(+), 4 deletions(-)
+
+diff --git a/src/plugins/report_EmergencyAnalysis.xml.in b/src/plugins/report_EmergencyAnalysis.xml.in
+index 3fb2bd23..c00a734f 100644
+--- a/src/plugins/report_EmergencyAnalysis.xml.in
++++ b/src/plugins/report_EmergencyAnalysis.xml.in
+@@ -15,7 +15,7 @@
+         <option type="text" name="Upload_URL">
+             <_label>URL</_label>
+             <allow-empty>no</allow-empty>
+-            <default-value>https://retrace.fedoraproject.org/faf/dumpdirs/new/</default-value>
++            <default-value>https://localhost/faf/dumpdirs/new/</default-value>
+         </option>
+         <advanced-options>
+             <option type="text" name="http_proxy">
+diff --git a/src/plugins/report_uReport.xml.in b/src/plugins/report_uReport.xml.in
+index 791c9faa..996f20b2 100644
+--- a/src/plugins/report_uReport.xml.in
++++ b/src/plugins/report_uReport.xml.in
+@@ -14,7 +14,7 @@
+             <_label>uReport Server URL</_label>
+             <allow-empty>no</allow-empty>
+             <_description>Address of uReport webservice</_description>
+-            <default-value>https://retrace.fedoraproject.org/faf</default-value>
++            <default-value>https://bug-report.redhat.com</default-value>
+         </option>
+         <option type="bool" name="uReport_WatchReportedBugs">
+             <_label>Watch already reported bugs</_label>
+diff --git a/src/plugins/reporter-ureport.c b/src/plugins/reporter-ureport.c
+index cc1cedc2..0aa3324f 100644
+--- a/src/plugins/reporter-ureport.c
++++ b/src/plugins/reporter-ureport.c
+@@ -22,7 +22,7 @@
+ #include "ureport.h"
+ #include "libreport_curl.h"
+ 
+-#define DEFAULT_WEB_SERVICE_URL "https://retrace.fedoraproject.org/faf"
++#define DEFAULT_WEB_SERVICE_URL "https://bug-report.redhat.com"
+ 
+ int main(int argc, char **argv)
+ {
+diff --git a/src/plugins/ureport.conf b/src/plugins/ureport.conf
+index 3cde1e32..04dc1000 100644
+--- a/src/plugins/ureport.conf
++++ b/src/plugins/ureport.conf
+@@ -1,5 +1,5 @@
+ # Base URL to uReport server
+-# URL = https://retrace.fedoraproject.org/faf
++# URL = https://bug-report.redhat.com
+ 
+ # no means that ssl certificates will not be checked
+ # SSLVerify = no
+-- 
+2.17.1
+

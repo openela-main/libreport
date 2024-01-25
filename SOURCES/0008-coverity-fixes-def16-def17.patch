@@ -1,0 +1,41 @@
+From a6cc1ba3c528c2622d229decbc59944f8ef5752a Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Fri, 20 Jul 2018 15:39:13 +0200
+Subject: [PATCH] coverity fixes [#def16] [#def17]
+
+libreport-2.9.5/src/lib/dump_dir.c:890: negative_returns: "fd" is passed to a
+parameter that cannot be negative.
+
+https://cov01.lab.eng.brq.redhat.com/el8-results/el8/libreport-2.9.5-2.el8+7/scan-results.html#def16
+
+libreport-2.9.5/src/lib/dump_dir.c:926: negative_returns: "fd" is passed to a parameter that cannot be negative.
+
+https://cov01.lab.eng.brq.redhat.com/el8-results/el8/libreport-2.9.5-2.el8+7/scan-results.html#def17
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/lib/dump_dir.c | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+diff --git a/src/lib/dump_dir.c b/src/lib/dump_dir.c
+index f509fdc5..632a01fa 100644
+--- a/src/lib/dump_dir.c
++++ b/src/lib/dump_dir.c
+@@ -849,10 +849,12 @@ static int fdreopen(int dir_fd, DIR **d)
+     { \
+         if (dot_or_dotdot(dent->d_name)) continue; \
+         int fd = secure_openat_read(dirfd(d), dent->d_name); \
+-        if (fd >= 0)
++        if (fd >= 0) \
++        {
+ 
+ #define FOREACH_REGULAR_FILE_AS_FD_AT_END \
+-        close(fd); \
++            close(fd); \
++        } \
+     } \
+     closedir(d);
+ 
+-- 
+2.17.1
+

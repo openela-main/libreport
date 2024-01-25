@@ -1,0 +1,31 @@
+From 9c28424364eeac530e9ea2103b8436e1ed1a53de Mon Sep 17 00:00:00 2001
+From: Matej Habrnal <mhabrnal@redhat.com>
+Date: Mon, 6 Aug 2018 15:39:45 +0200
+Subject: [PATCH] coverity fixes [#def21]
+
+libreport-2.9.5/src/lib/event_config.c:465: leaked_storage: Variable "err"
+going out of scope leaks the storage it points to.
+
+https://cov01.lab.eng.brq.redhat.com/el8-results/el8/libreport-2.9.5-2.el8+7/scan-results.html#def21
+
+Signed-off-by: Matej Habrnal <mhabrnal@redhat.com>
+---
+ src/lib/event_config.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/src/lib/event_config.c b/src/lib/event_config.c
+index 88334db1..bbc8d33c 100644
+--- a/src/lib/event_config.c
++++ b/src/lib/event_config.c
+@@ -461,6 +461,8 @@ GList *get_options_with_err_msg(const char *event_name)
+             inv_opt->invopt_name = xstrdup(opt->eo_name);
+             inv_opt->invopt_error = xstrdup(err);
+             err_list = g_list_prepend(err_list, inv_opt);
++
++            free(err);
+         }
+     }
+ 
+-- 
+2.17.1
+

@@ -1,0 +1,34 @@
+From aea02b3719a161a05dac815955cfa1bb630e8da4 Mon Sep 17 00:00:00 2001
+From: Ernestas Kulik <ekulik@redhat.com>
+Date: Fri, 24 Jul 2020 10:45:37 +0200
+Subject: [PATCH] plugins: reporter-rhtsupport: Fix command-line parsing
+
+cb81dc0870949fbacaa6e2384e91fc4de4df43a5 drops -u and -C options, but
+does not remove them from the enumeration, which maps the options to the
+option struct, leading to -F and -D not being parsed.
+
+https://bugzilla.redhat.com/show_bug.cgi?id=1860285
+---
+ src/plugins/reporter-rhtsupport.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
+
+diff --git a/src/plugins/reporter-rhtsupport.c b/src/plugins/reporter-rhtsupport.c
+index 411bffc..7f5aafa 100644
+--- a/src/plugins/reporter-rhtsupport.c
++++ b/src/plugins/reporter-rhtsupport.c
+@@ -404,10 +404,8 @@ int main(int argc, char **argv)
+         OPT_c = 1 << 2,
+         OPT_t = 1 << 3,
+         OPT_f = 1 << 4,
+-        OPT_u = 1 << 5,
+-        OPT_C = 1 << 6,
+-        OPT_F = 1 << 7,
+-        OPT_D = 1 << 8,
++        OPT_F = 1 << 5,
++        OPT_D = 1 << 6,
+     };
+     /* Keep enum above and order of options below in sync! */
+     struct options program_options[] = {
+-- 
+2.26.2
+
