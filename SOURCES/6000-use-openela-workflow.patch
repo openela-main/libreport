@@ -1,0 +1,663 @@
+From 799f7d5c7cb792c209726459cd9ace52ad141ecc Mon Sep 17 00:00:00 2001
+From: Louis Abel <label@rockylinux.org>
+Date: Mon, 6 Jun 2022 09:52:27 -0700
+Subject: [PATCH 1/2] Patch for openela workflow
+
+---
+ README.md                                     |  2 +-
+ doc/Makefile.am                               |  5 +-
+ doc/report_OpenELABugTracker.conf.txt           | 45 +++++++++++++
+ doc/report_openela.conf.txt                     | 41 ++++++++++++
+ doc/openela_report_event.conf.5                 |  1 +
+ po/POTFILES.in                                | 10 +++
+ src/plugins/Makefile.am                       | 12 ++--
+ src/plugins/mantisbt.c                        |  4 +-
+ src/plugins/report_OpenELABugTracker.conf       |  4 ++
+ src/plugins/report_OpenELABugTracker.xml.in     | 66 +++++++++++++++++++
+ src/plugins/reporter-mantisbt.c               |  4 +-
+ src/plugins/openela_report_event.conf           | 38 +++++++++++
+ src/workflows/Makefile.am                     | 25 ++++++-
+ src/workflows/report_openela.conf               | 31 +++++++++
+ src/workflows/workflow_OpenELACCpp.xml.in       | 12 ++++
+ src/workflows/workflow_OpenELAJava.xml.in       | 11 ++++
+ src/workflows/workflow_OpenELAJavaScript.xml.in | 11 ++++
+ src/workflows/workflow_OpenELAKerneloops.xml.in | 11 ++++
+ src/workflows/workflow_OpenELALibreport.xml.in  |  9 +++
+ src/workflows/workflow_OpenELAPython.xml.in     | 11 ++++
+ src/workflows/workflow_OpenELAPython3.xml.in    | 11 ++++
+ src/workflows/workflow_OpenELAVmcore.xml.in     | 12 ++++
+ src/workflows/workflow_OpenELAXorg.xml.in       |  9 +++
+ 23 files changed, 372 insertions(+), 13 deletions(-)
+ create mode 100644 doc/report_OpenELABugTracker.conf.txt
+ create mode 100644 doc/report_openela.conf.txt
+ create mode 100644 doc/openela_report_event.conf.5
+ create mode 100644 src/plugins/report_OpenELABugTracker.conf
+ create mode 100644 src/plugins/report_OpenELABugTracker.xml.in
+ create mode 100644 src/plugins/openela_report_event.conf
+ create mode 100644 src/workflows/report_openela.conf
+ create mode 100644 src/workflows/workflow_OpenELACCpp.xml.in
+ create mode 100644 src/workflows/workflow_OpenELAJava.xml.in
+ create mode 100644 src/workflows/workflow_OpenELAJavaScript.xml.in
+ create mode 100644 src/workflows/workflow_OpenELAKerneloops.xml.in
+ create mode 100644 src/workflows/workflow_OpenELALibreport.xml.in
+ create mode 100644 src/workflows/workflow_OpenELAPython.xml.in
+ create mode 100644 src/workflows/workflow_OpenELAPython3.xml.in
+ create mode 100644 src/workflows/workflow_OpenELAVmcore.xml.in
+ create mode 100644 src/workflows/workflow_OpenELAXorg.xml.in
+
+diff --git a/README.md b/README.md
+index 74618a5..7a65529 100644
+--- a/README.md
++++ b/README.md
+@@ -21,7 +21,7 @@ The library is used in [**ABRT (Automatic Bug Reporting Tool)**](https://abrt.re
+ - **e-mail**         : reporter-mailx
+ - **ftp/scp**        : reporter-upload
+ - [**Bugzilla**](https://bugzilla.redhat.com)                 : reporter-bugzilla
+-- [**MantisBT**](https://bugs.centos.org)                     : reporter-mantisbt
++- [**MantisBT**](https://bugs.openela.org)                 : reporter-mantisbt
+ - [**FAF**](https://retrace.fedoraproject.org/faf/summary/)   : reporter-ureport
+
+ - [**Linux Kernel Oops**](http://www.kerneloops.org/)       : reporter-kerneloops
+diff --git a/doc/Makefile.am b/doc/Makefile.am
+index 4734f7f..0633b28 100644
+--- a/doc/Makefile.am
++++ b/doc/Makefile.am
+@@ -51,6 +51,7 @@ MAN5_TXT = \
+ 	mailx_event.conf.txt \
+ 	print_event.conf.txt \
+ 	report_event.conf.txt \
++	report_openela.conf.txt \
+ 	report_fedora.conf.txt \
+ 	report_centos.conf.txt \
+ 	report_Logger.conf.txt \
+@@ -61,6 +62,7 @@ MAN5_TXT = \
+ 	report_uploader.conf.txt \
+ 	report_Uploader.conf.txt \
+ 	report_CentOSBugTracker.conf.txt \
++	report_OpenELABugTracker.conf.txt \
+ 	uploader_event.conf.txt \
+ 	ureport.conf.txt \
+ 	upload.conf.txt
+@@ -73,7 +75,8 @@ EXTRA_DIST += $(MAN1_BUGZILLA) $(MAN5_BUGZILLA)
+ endif
+ 
+ MAN5_PREFORMATTED =
+-MAN5_PREFORMATTED += centos_report_event.conf.5
++MAN5_PREFORMATTED += centos_report_event.conf.5 \
++                     openela_report_event.conf.5
+ 
+ # Manual pages are generated from .txt via Docbook
+ man1_MANS = ${MAN1_TXT:%.txt=%.1}
+diff --git a/doc/report_OpenELABugTracker.conf.txt b/doc/report_OpenELABugTracker.conf.txt
+new file mode 100644
+index 0000000..3c69d1c
+--- /dev/null
++++ b/doc/report_OpenELABugTracker.conf.txt
+@@ -0,0 +1,45 @@
++report_OpenELABugTracker.conf(5)
++==============================
++
++NAME
++----
++report_OpenELABugTracker.conf - libreport's configuration file for 'report_OpenELABugTracker' events.
++
++DESCRIPTION
++-----------
++This configuration file contains values for options defined in
++/usr/share/libreport/events/report_OpenELABugTracker.xml
++
++Configuration file lines should have 'PARAM = VALUE' format. The parameters are:
++
++'Mantisbt_Login'::
++	Login to MantisBT account.
++
++'Mantisbt_Password'::
++	Password to MantisBT account.
++
++'Mantisbt_MantisbtURL'::
++	MantisBT HTTP(S) address. (default: https://bugs.openela.org)
++
++'Mantisbt_SSLVerify'::
++	Use yes/true/on/1 to verify server's SSL certificate. (default: yes)
++
++'Mantisbt_Project'::
++	Project issue field value. Useful if you needed different project than specified in /etc/os-release
++
++'Mantisbt_ProjectVersion'::
++	Version issue field value. Useful if you needed different project version than specified in /etc/os-release
++
++'http_proxy'::
++	the proxy server to use for HTTP
++
++'HTTPS_PROXY'::
++	the proxy server to use for HTTPS
++
++SEE ALSO
++--------
++report_event.conf(5), reporter-mantisbt(1)
++
++AUTHOR
++------
++* Release Engineering @ OpenELA
+diff --git a/doc/report_openela.conf.txt b/doc/report_openela.conf.txt
+new file mode 100644
+index 0000000..c6386a6
+--- /dev/null
++++ b/doc/report_openela.conf.txt
+@@ -0,0 +1,41 @@
++report_openela.conf(5)
++====================
++
++NAME
++----
++report_openela.conf - configuration file for libreport.
++
++DESCRIPTION
++-----------
++This configuration file specifies which of the reporting work flow definitions
++are applicable for all problems types on OpenELA.
++
++All applicable work flows are presented to users in User Interface as
++possibilities for processing of any problems. A particular work flow becomes
++applicable if its conditions are satisfied.
++
++This configuration file consists from one condition per line.
++
++Each condition line must start with EVENT=workflow_NAME where "workflow_" is
++constant prefix and "workflow_NAME" is base name of path to reporting work flow
++configuration file.
++
++The rest of condition line has form VAR=VAL, VAR!=VAL or VAL~=REGEX, where VAR
++is a name of problem directory element to be checked (for example,
++"executable", "package", hostname" etc). The condition may consists
++from as many element checks as it is necessary.
++
++EXAMPLES
++--------
++Condition line::
++    EVENT=workflow_OpenELACCpp analyzer=CCpp
++
++The condition line above expects existence of /usr/share/libreport/workflows/workflow_OpenELACCpp.xml
++
++SEE ALSO
++--------
++report-gtk(1)
++
++AUTHOR
++------
++* Release Engineering @ OpenELA
+diff --git a/doc/openela_report_event.conf.5 b/doc/openela_report_event.conf.5
+new file mode 100644
+index 0000000..71c3fcb
+--- /dev/null
++++ b/doc/openela_report_event.conf.5
+@@ -0,0 +1 @@
++.so man5/report_event.conf.5
+diff --git a/po/POTFILES.in b/po/POTFILES.in
+index d1a6064..143a353 100644
+--- a/po/POTFILES.in
++++ b/po/POTFILES.in
+@@ -42,6 +42,7 @@ src/plugins/reporter-systemd-journal.c
+ src/plugins/reporter-upload.c
+ src/plugins/reporter-mantisbt.c
+ src/plugins/report_CentOSBugTracker.xml.in
++src/plugins/report_OpenELABugTracker.xml.in
+ src/plugins/report_Kerneloops.xml.in
+ src/plugins/report_Logger.xml.in
+ src/plugins/report_Mailx.xml.in
+@@ -88,3 +89,12 @@ src/workflows/workflow_RHELBugzillaXorg.xml.in
+ src/workflows/workflow_RHELBugzillaLibreport.xml.in
+ src/workflows/workflow_RHELBugzillaJava.xml.in
+ src/workflows/workflow_RHELBugzillaJavaScript.xml.in
++src/workflows/workflow_OpenELACCpp.xml.in
++src/workflows/workflow_OpenELAJava.xml.in
++src/workflows/workflow_OpenELAJavaScript.xml.in
++src/workflows/workflow_OpenELAKerneloops.xml.in
++src/workflows/workflow_OpenELALibreport.xml.in
++src/workflows/workflow_OpenELAPython.xml.in
++src/workflows/workflow_OpenELAPython3.xml.in
++src/workflows/workflow_OpenELAVmcore.xml.in
++src/workflows/workflow_OpenELAXorg.xml.in
+diff --git a/src/plugins/Makefile.am b/src/plugins/Makefile.am
+index 5198905..73da42e 100644
+--- a/src/plugins/Makefile.am
++++ b/src/plugins/Makefile.am
+@@ -68,9 +68,11 @@ reporters_events_conf += report_Bugzilla.conf
+ endif
+ 
+ if BUILD_MANTISBT
+-reporters_events += report_CentOSBugTracker.xml
++reporters_events += report_CentOSBugTracker.xml \
++                    report_OpenELABugTracker.xml
+ 
+-reporters_events_conf += report_CentOSBugTracker.conf
++reporters_events_conf += report_CentOSBugTracker.conf \
++                         report_OpenELABugTracker.conf
+ endif
+ 
+ if BUILD_UREPORT
+@@ -95,7 +97,8 @@ dist_eventsdef_DATA = \
+     mailx_event.conf \
+     print_event.conf \
+     uploader_event.conf \
+-    centos_report_event.conf
++    centos_report_event.conf \
++    openela_report_event.conf
+ 
+ reporters_extra_dist =
+ if BUILD_BUGZILLA
+@@ -109,7 +112,8 @@ reporters_extra_dist += report_uReport.xml.in
+ endif
+ 
+ if BUILD_MANTISBT
+-reporters_extra_dist += report_CentOSBugTracker.xml.in
++reporters_extra_dist += report_CentOSBugTracker.xml.in \
++                        report_OpenELABugTracker.xml.in
+ endif
+ 
+ EXTRA_DIST = $(reporters_extra_dist) \
+diff --git a/src/plugins/mantisbt.c b/src/plugins/mantisbt.c
+index 9682e65..0a6511f 100644
+--- a/src/plugins/mantisbt.c
++++ b/src/plugins/mantisbt.c
+@@ -335,7 +335,7 @@ soap_add_new_issue_parameters(soap_request_t *req,
+             error_msg_and_die(_("SOAP: Failed to create a new property in custom fields."));
+     }
+ 
+-    soap_node_add_child_node(issue_node, "os_build", SOAP_STRING, version);
++    soap_node_add_child_node(issue_node, "version", SOAP_STRING, version);
+     soap_node_add_child_node(issue_node, "category", SOAP_STRING, category);
+     soap_node_add_child_node(issue_node, "summary", SOAP_STRING, summary);
+     soap_node_add_child_node(issue_node, "description", SOAP_STRING, description);
+@@ -862,7 +862,7 @@ mantisbt_search_duplicate_issues(mantisbt_settings_t *settings, const char *cate
+ 
+     // version
+     if (version != NULL)
+-        soap_filter_add_new_array_parameter(filter_node, "os_build", SOAP_STRINGARRAY, version);
++        soap_filter_add_new_array_parameter(filter_node, "version", SOAP_STRINGARRAY, version);
+ 
+     soap_request_add_method_parameter(req, "page_number", SOAP_INTEGER, "1");
+     soap_request_add_method_parameter(req, "per_page", SOAP_INTEGER, /* -1 means get all issues */ "-1");
+diff --git a/src/plugins/report_OpenELABugTracker.conf b/src/plugins/report_OpenELABugTracker.conf
+new file mode 100644
+index 0000000..d451d37
+--- /dev/null
++++ b/src/plugins/report_OpenELABugTracker.conf
+@@ -0,0 +1,4 @@
++Mantisbt_MantisbtURL = https://bugs.openela.org
++Mantisbt_Login =
++Mantisbt_Password =
++Mantisbt_SSLVerify = yes
+diff --git a/src/plugins/report_OpenELABugTracker.xml.in b/src/plugins/report_OpenELABugTracker.xml.in
+new file mode 100644
+index 0000000..bdb0c30
+--- /dev/null
++++ b/src/plugins/report_OpenELABugTracker.xml.in
+@@ -0,0 +1,66 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<event>
++    <_name>OpenELA Bug Tracker</_name>
++    <_description>Report to OpenELA Bug Tracker</_description>
++
++    <requires-items>component,duphash,os_release</requires-items>
++    <exclude-items-by-default>coredump,count,event_log,reported_to,vmcore</exclude-items-by-default>
++    <exclude-items-always></exclude-items-always>
++    <exclude-binary-items>no</exclude-binary-items>
++    <include-items-by-default></include-items-by-default>
++    <minimal-rating>3</minimal-rating>
++    <gui-review-elements>yes</gui-review-elements>
++    <support-restricted-access optionname="Mantisbt_CreatePrivate">yes</support-restricted-access>
++
++    <options>
++        <option type="text" name="Mantisbt_Login">
++            <_label>User name</_label>
++            <allow-empty>no</allow-empty>
++            <_description>OpenELA Bug Tracker account user name</_description>
++            <_note-html>You can create bugs.openela.org account &lt;a href="https://bugs.openela.org/signup_page.php"&gt;here&lt;/a&gt;</_note-html>
++        </option>
++        <option type="password" name="Mantisbt_Password">
++            <_label>Password</_label>
++            <allow-empty>no</allow-empty>
++            <_description>OpenELA Bug Tracker account password</_description>
++        </option>
++        <option type="bool" name="Mantisbt_CreatePrivate">
++            <_label>Restrict access</_label>
++            <_note-html>The issue will be accessible only to users with access to 'Private Issues'</_note-html>
++            <default-value>no</default-value>
++        </option>
++        <advanced-options>
++            <option type="text" name="Mantisbt_MantisbtURL">
++                <_label>OpenELA Bug Tracker URL</_label>
++                <allow-empty>no</allow-empty>
++                <_note-html>Address of OpenELA Bug Tracker server</_note-html>
++                <default-value>https://bugs.openela.org</default-value>
++            </option>
++            <option type="bool" name="Mantisbt_SSLVerify">
++                <_label>Verify SSL</_label>
++                <_note-html>Check SSL key validity</_note-html>
++                <default-value>yes</default-value>
++            </option>
++            <option type="text" name="Mantisbt_Project">
++                <_label>OpenELA Bug Tracker project</_label>
++                <allow-empty>yes</allow-empty>
++                <_note-html>Specify this only if you needed different project than specified in /etc/os-release</_note-html>
++            </option>
++            <option type="text" name="Mantisbt_ProjectVersion">
++                <_label>OpenELA Bug Tracker project version</_label>
++                <allow-empty>yes</allow-empty>
++                <_note-html>Specify this only if you needed different project version than specified in /etc/os-release</_note-html>
++            </option>
++            <option type="text" name="http_proxy">
++                <_label>HTTP Proxy</_label>
++                <allow-empty>yes</allow-empty>
++                <_note-html>Sets the proxy server to use for HTTP</_note-html>
++            </option>
++            <option type="text" name="HTTPS_PROXY">
++                <_label>HTTPS Proxy</_label>
++                <allow-empty>yes</allow-empty>
++                <_note-html>Sets the proxy server to use for HTTPS</_note-html>
++            </option>
++        </advanced-options>
++    </options>
++</event>
+diff --git a/src/plugins/reporter-mantisbt.c b/src/plugins/reporter-mantisbt.c
+index 909b2bb..d3e638d 100644
+--- a/src/plugins/reporter-mantisbt.c
++++ b/src/plugins/reporter-mantisbt.c
+@@ -25,11 +25,11 @@
+ static void
+ parse_osinfo_for_mantisbt(GHashTable *osinfo, char** project, char** version)
+ {
+-    const char *name = g_hash_table_lookup(osinfo, "CENTOS_MANTISBT_PROJECT");
++    const char *name = g_hash_table_lookup(osinfo, "OpenELA_MANTISBT_PROJECT");
+     if (!name)
+         name = g_hash_table_lookup(osinfo, OSINFO_NAME);
+ 
+-    const char *version_id = g_hash_table_lookup(osinfo, "CENTOS_MANTISBT_PROJECT_VERSION");
++    const char *version_id = g_hash_table_lookup(osinfo, "OpenELA_MANTISBT_PROJECT_VERSION");
+     if (!version_id)
+         version_id = g_hash_table_lookup(osinfo, OSINFO_VERSION_ID);
+ 
+diff --git a/src/plugins/openela_report_event.conf b/src/plugins/openela_report_event.conf
+new file mode 100644
+index 0000000..3c6ed66
+--- /dev/null
++++ b/src/plugins/openela_report_event.conf
+@@ -0,0 +1,38 @@
++EVENT=report_OpenELABugTracker type=xorg
++    reporter-mantisbt
++
++EVENT=report_OpenELABugTracker type=Kerneloops
++    reporter-mantisbt
++
++EVENT=report_OpenELABugTracker type=vmcore
++        reporter-mantisbt
++
++EVENT=report_OpenELABugTracker type=Python component!=anaconda
++        test -f component || abrt-action-save-package-data
++        reporter-mantisbt \
++                -F /etc/libreport/plugins/mantisbt_format.conf \
++                -A /etc/libreport/plugins/mantisbt_formatdup.conf
++
++EVENT=report_OpenELABugTracker type=Python3 component!=anaconda
++        test -f component || abrt-action-save-package-data
++        reporter-mantisbt \
++                -F /etc/libreport/plugins/mantisbt_format.conf \
++                -A /etc/libreport/plugins/mantisbt_formatdup.conf
++
++EVENT=report_OpenELABugTracker type=CCpp duphash!=
++        test -f component || abrt-action-save-package-data
++        component="`cat component`"
++        format="mantisbt_format.conf"
++        test -f "/etc/libreport/plugins/mantisbt_format_$component.conf" \
++                && format="mantisbt_format_$component.conf"
++        formatdup="mantisbt_formatdup.conf"
++        test -f "/etc/libreport/plugins/mantisbt_formatdup_$component.conf" \
++                && formatdup="mantisbt_formatdup_$component.conf"
++        reporter-mantisbt \
++                -F "/etc/libreport/plugins/$format" \
++                -A "/etc/libreport/plugins/$formatdup"
++
++EVENT=report_OpenELABugTracker analyzer=libreport
++    reporter-mantisbt \
++        -F /etc/libreport/plugins/mantisbt_format_analyzer_libreport.conf \
++        -A /etc/libreport/plugins/mantisbt_formatdup_analyzer_libreport.conf
+diff --git a/src/workflows/Makefile.am b/src/workflows/Makefile.am
+index 4fa145f..99b8b3c 100644
+--- a/src/workflows/Makefile.am
++++ b/src/workflows/Makefile.am
+@@ -28,7 +28,16 @@ dist_workflows_DATA += \
+     workflow_CentOSXorg.xml \
+     workflow_CentOSLibreport.xml \
+     workflow_CentOSJava.xml \
+-    workflow_CentOSJavaScript.xml
++    workflow_CentOSJavaScript.xml \
++    workflow_OpenELACCpp.xml \
++    workflow_OpenELAKerneloops.xml \
++    workflow_OpenELAPython.xml \
++    workflow_OpenELAPython3.xml \
++    workflow_OpenELAVmcore.xml \
++    workflow_OpenELAXorg.xml \
++    workflow_OpenELALibreport.xml \
++    workflow_OpenELAJava.xml \
++    workflow_OpenELAJavaScript.xml
+ endif
+ 
+ if BUILD_BUGZILLA
+@@ -54,7 +63,8 @@ dist_workflowsdef_DATA =\
+     report_mailx.conf \
+     report_logger.conf \
+     report_uploader.conf \
+-    report_centos.conf
++    report_centos.conf \
++    report_openela.conf
+ 
+ if BUILD_BUGZILLA
+ dist_workflowsdef_DATA += \
+@@ -108,5 +118,14 @@ EXTRA_DIST += \
+     workflow_CentOSXorg.xml.in \
+     workflow_CentOSLibreport.xml.in \
+     workflow_CentOSJava.xml.in \
+-    workflow_CentOSJavaScript.xml.in
++    workflow_CentOSJavaScript.xml.in \
++    workflow_OpenELACCpp.xml.in \
++    workflow_OpenELAKerneloops.xml.in \
++    workflow_OpenELAPython.xml.in \
++    workflow_OpenELAPython3.xml.in \
++    workflow_OpenELAVmcore.xml.in \
++    workflow_OpenELAXorg.xml.in \
++    workflow_OpenELALibreport.xml.in \
++    workflow_OpenELAJava.xml.in \
++    workflow_OpenELAJavaScript.xml.in
+ endif
+diff --git a/src/workflows/report_openela.conf b/src/workflows/report_openela.conf
+new file mode 100644
+index 0000000..5e853de
+--- /dev/null
++++ b/src/workflows/report_openela.conf
+@@ -0,0 +1,31 @@
++EVENT=workflow_OpenELALibreport analyzer=libreport
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
++
++EVENT=workflow_OpenELACCpp type=CCpp
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
++
++EVENT=workflow_OpenELAPython type=Python component!=anaconda
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
++
++EVENT=workflow_OpenELAPython3 type=Python3 component!=anaconda
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
++
++EVENT=workflow_OpenELAKerneloops type=Kerneloops
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
++
++EVENT=workflow_OpenELAVmcore type=vmcore
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
++
++EVENT=workflow_OpenELAXorg type=xorg
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
++
++EVENT=workflow_OpenELAJava type=Java
++# this is just a meta event which consists of other events
++# the list is defined in the xml file
+diff --git a/src/workflows/workflow_OpenELACCpp.xml.in b/src/workflows/workflow_OpenELACCpp.xml.in
+new file mode 100644
+index 0000000..dc0f230
+--- /dev/null
++++ b/src/workflows/workflow_OpenELACCpp.xml.in
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Report to OpenELA Bug Tracker</_name>
++    <_description>Process the C/C++ crash using the OpenELA infrastructure</_description>
++
++    <events>
++        <event>report_uReport</event>
++        <event>collect_*</event>
++        <event>analyze_CCpp</event>
++        <event>report_OpenELABugTracker</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_OpenELAJava.xml.in b/src/workflows/workflow_OpenELAJava.xml.in
+new file mode 100644
+index 0000000..1859ffa
+--- /dev/null
++++ b/src/workflows/workflow_OpenELAJava.xml.in
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Report to OpenELA Bug Tracker</_name>
++    <_description>Process the Java exception using the OpenELA infrastructure</_description>
++
++    <events>
++        <event>report_uReport</event>
++        <event>collect_*</event>
++        <event>report_OpenELABugTracker</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_OpenELAJavaScript.xml.in b/src/workflows/workflow_OpenELAJavaScript.xml.in
+new file mode 100644
+index 0000000..4062a05
+--- /dev/null
++++ b/src/workflows/workflow_OpenELAJavaScript.xml.in
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Report to OpenELA Bug Tracker</_name>
++    <_description>Process the JavaScript exception using the OpenELA infrastructure</_description>
++
++    <events>
++        <event>report_uReport</event>
++        <event>collect_*</event>
++        <event>report_OpenELABugTracker</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_OpenELAKerneloops.xml.in b/src/workflows/workflow_OpenELAKerneloops.xml.in
+new file mode 100644
+index 0000000..cf57168
+--- /dev/null
++++ b/src/workflows/workflow_OpenELAKerneloops.xml.in
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Report to OpenELA Bug Tracker</_name>
++    <_description>Process the kerneloops using the OpenELA infrastructure</_description>
++
++    <events>
++        <event>report_uReport</event>
++        <event>collect_*</event>
++        <event>report_OpenELABugTracker</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_OpenELALibreport.xml.in b/src/workflows/workflow_OpenELALibreport.xml.in
+new file mode 100644
+index 0000000..57a652a
+--- /dev/null
++++ b/src/workflows/workflow_OpenELALibreport.xml.in
+@@ -0,0 +1,9 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Report to OpenELA Bug Tracker</_name>
++    <_description>Process the problem using the OpenELA infrastructure</_description>
++
++    <events>
++        <event>report_OpenELABugTracker</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_OpenELAPython.xml.in b/src/workflows/workflow_OpenELAPython.xml.in
+new file mode 100644
+index 0000000..2f15242
+--- /dev/null
++++ b/src/workflows/workflow_OpenELAPython.xml.in
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Report to OpenELA Bug Tracker</_name>
++    <_description>Process the python exception using the OpenELA infrastructure</_description>
++
++    <events>
++        <event>report_uReport</event>
++        <event>collect_*</event>
++        <event>report_OpenELABugTracker</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_OpenELAPython3.xml.in b/src/workflows/workflow_OpenELAPython3.xml.in
+new file mode 100644
+index 0000000..2e3d158
+--- /dev/null
++++ b/src/workflows/workflow_OpenELAPython3.xml.in
+@@ -0,0 +1,11 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Report to OpenELA Bug Tracker</_name>
++    <_description>Process the python 3 exception using the OpenELA infrastructure</_description>
++
++    <events>
++        <event>report_uReport</event>
++        <event>collect_*</event>
++        <event>report_OpenELABugTracker</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_OpenELAVmcore.xml.in b/src/workflows/workflow_OpenELAVmcore.xml.in
+new file mode 100644
+index 0000000..7532926
+--- /dev/null
++++ b/src/workflows/workflow_OpenELAVmcore.xml.in
+@@ -0,0 +1,12 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Report to OpenELA Bug Tracker</_name>
++    <_description>Process the kernel crash using the OpenELA infrastructure</_description>
++
++    <events>
++        <event>analyze_VMcore</event>
++        <event>report_uReport</event>
++        <event>collect_*</event>
++        <event>report_OpenELABugTracker</event>
++    </events>
++</workflow>
+diff --git a/src/workflows/workflow_OpenELAXorg.xml.in b/src/workflows/workflow_OpenELAXorg.xml.in
+new file mode 100644
+index 0000000..06f39c5
+--- /dev/null
++++ b/src/workflows/workflow_OpenELAXorg.xml.in
+@@ -0,0 +1,9 @@
++<?xml version="1.0" encoding="UTF-8" ?>
++<workflow>
++    <_name>Report to OpenELA Bug Tracker</_name>
++    <_description>Process the X Server problem using the OpenELA infrastructure</_description>
++
++    <events>
++        <event>report_OpenELABugTracker</event>
++    </events>
++</workflow>
+-- 
+2.32.1 (Apple Git-133)
+

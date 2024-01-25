@@ -1,0 +1,113 @@
+From 28a6267c056d43cdbf8cd3e10e69d8ab113e74f8 Mon Sep 17 00:00:00 2001
+From: Michal Srb <michal@redhat.com>
+Date: Tue, 7 Sep 2021 21:31:21 +0200
+Subject: [PATCH] [rhbz] Retry XML-RPC calls when uploading attachments
+
+If there is a bot that automatically modifies newly opened bugs, then
+it can lead to "query serialization error" from Bugzilla. Retry should
+help us here.
+
+Signed-off-by: Michal Srb <michal@redhat.com>
+---
+ src/lib/abrt_xmlrpc.c     | 34 ++++++++++++++++++++++++++++++++++
+ src/lib/abrt_xmlrpc.h     |  5 +++++
+ src/lib/libreport-web.sym |  1 +
+ src/plugins/rhbz.c        |  4 +++-
+ 4 files changed, 43 insertions(+), 1 deletion(-)
+
+diff --git a/src/lib/abrt_xmlrpc.c b/src/lib/abrt_xmlrpc.c
+index 7cac9253..4c3b469a 100644
+--- a/src/lib/abrt_xmlrpc.c
++++ b/src/lib/abrt_xmlrpc.c
+@@ -16,6 +16,7 @@
+     with this program; if not, write to the Free Software Foundation, Inc.,
+     51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
++#include <unistd.h>
+ #include "internal_libreport.h"
+ #include "abrt_xmlrpc.h"
+ #include "proxies.h"
+@@ -301,3 +302,36 @@ xmlrpc_value *abrt_xmlrpc_call(struct abrt_xmlrpc *ax,
+ 
+     return result;
+ }
++
++/* die eventually or return expected results; retry up to 5 times if the error is known */
++xmlrpc_value *abrt_xmlrpc_call_with_retry(const char *fault_substring,
++                                          struct abrt_xmlrpc *ax,
++                                          const char *method,
++                                          const char *format, ...)
++{
++    int retry_counter = 0;
++    xmlrpc_env env;
++
++    va_list args;
++
++    do {
++        // sleep, if this is not the first try;
++        // sleep() can be interrupted, but that's not a big deal here
++        if (retry_counter)
++            sleep(retry_counter);
++
++        va_start(args, format);
++        xmlrpc_value *result = abrt_xmlrpc_call_full_va(&env, ax, method, format, args);
++        va_end(args);
++
++        if (!env.fault_occurred)
++            return result;  // success!
++
++        if (env.fault_string && !strstr(env.fault_string, fault_substring)) {
++            // unknown error, don't bother retrying...
++            abrt_xmlrpc_die(&env);
++        }
++    } while (++retry_counter <= 5);
++
++    abrt_xmlrpc_die(&env);
++}
+diff --git a/src/lib/abrt_xmlrpc.h b/src/lib/abrt_xmlrpc.h
+index 31768ffc..8ddcfc54 100644
+--- a/src/lib/abrt_xmlrpc.h
++++ b/src/lib/abrt_xmlrpc.h
+@@ -63,6 +63,11 @@ xmlrpc_value *abrt_xmlrpc_call_params(xmlrpc_env *env, struct abrt_xmlrpc *ax,
+ xmlrpc_value *abrt_xmlrpc_call_full(xmlrpc_env *enf, struct abrt_xmlrpc *ax,
+                                    const char *method, const char *format, ...);
+ 
++xmlrpc_value *abrt_xmlrpc_call_with_retry(const char *fault_substring,
++                                          struct abrt_xmlrpc *ax,
++                                          const char *method,
++                                          const char *format, ...);
++
+ #ifdef __cplusplus
+ }
+ #endif
+diff --git a/src/lib/libreport-web.sym b/src/lib/libreport-web.sym
+index 44f5244d..9ab88d3e 100644
+--- a/src/lib/libreport-web.sym
++++ b/src/lib/libreport-web.sym
+@@ -51,6 +51,7 @@ global:
+     abrt_xmlrpc_call;
+     abrt_xmlrpc_call_params;
+     abrt_xmlrpc_call_full;
++    abrt_xmlrpc_call_with_retry;
+ 
+     /* internal_libreport.h - these symbols are only to be used by libreport developers */
+     libreport_trim_all_whitespace;
+diff --git a/src/plugins/rhbz.c b/src/plugins/rhbz.c
+index 0dae1e93..f252f914 100644
+--- a/src/plugins/rhbz.c
++++ b/src/plugins/rhbz.c
+@@ -643,8 +643,10 @@ int rhbz_attach_blob(struct abrt_xmlrpc *ax, const char *bug_id,
+      *   i -> integer, single argument (int value)
+      *   6 -> base64,  two arguments (char* plain data which will be encoded by xmlrpc-c to base64,
+      *                                size_t number of bytes to encode)
++     *
++     * Retry if another user/bot attempted to change the same data.
+      */
+-    result = abrt_xmlrpc_call(ax, "Bug.add_attachment", "{s:(s),s:s,s:s,s:s,s:6,s:i}",
++    result = abrt_xmlrpc_call_with_retry("query serialization error", ax, "Bug.add_attachment", "{s:(s),s:s,s:s,s:s,s:6,s:i}",
+                 "ids", bug_id,
+                 "summary", fn,
+                 "file_name", filename,
+-- 
+2.31.1
+
