@@ -1,0 +1,206 @@
+diff --git a/SPECS/libreport.spec b/SPECS/libreport.spec
+index ed8fc17..4d94f5d 100644
+--- a/SPECS/libreport.spec
++++ b/SPECS/libreport.spec
+@@ -205,14 +205,14 @@ Requires: libreport-web = %{version}-%{release}
+ %description plugin-mantisbt
+ Plugin to report bugs into the mantisbt.
+ 
+-%package centos
+-Summary: %{name}'s CentOS Bug Tracker workflow
++%package openela
++Summary: %{name}'s OpenELA Bug Tracker workflow
+ Requires: %{name} = %{version}-%{release}
+ Requires: libreport-web = %{version}-%{release}
+ Requires: libreport-plugin-mantisbt = %{version}-%{release}
+ 
+-%description centos
+-Workflows to report issues into the CentOS Bug Tracker.
++%description openela
++Workflows to report issues into the OpenELA Bug Tracker.
+ 
+ %package plugin-ureport
+ Summary: %{name}'s micro report plugin
+@@ -231,40 +231,6 @@ Requires: libreport-web = %{version}-%{release}
+ %description plugin-reportuploader
+ Plugin to report bugs into anonymous FTP site associated with ticketing system.
+ 
+-%if 0%{?fedora} || 0%{?eln}
+-%package fedora
+-Summary: Default configuration for reporting bugs via Fedora infrastructure
+-Requires: %{name} = %{version}-%{release}
+-
+-%description fedora
+-Default configuration for reporting bugs via Fedora infrastructure
+-used to easily configure the reporting process for Fedora systems. Just
+-install this package and you're done.
+-%endif
+-
+-%if 0%{?rhel} && ! 0%{?eln}
+-%package rhel-bugzilla
+-Summary: Default configuration for reporting bugs to Red Hat Bugzilla
+-Requires: %{name} = %{version}-%{release}
+-Requires: libreport-plugin-bugzilla = %{version}-%{release}
+-Requires: libreport-plugin-ureport = %{version}-%{release}
+-
+-%description rhel-bugzilla
+-Default configuration for reporting bugs to Red Hat Bugzilla used to easily
+-configure the reporting process for Red Hat systems. Just install this package
+-and you're done.
+-
+-%package rhel-anaconda-bugzilla
+-Summary: Default configuration for reporting anaconda bugs to Red Hat Bugzilla
+-Requires: %{name} = %{version}-%{release}
+-Requires: libreport-plugin-bugzilla = %{version}-%{release}
+-
+-%description rhel-anaconda-bugzilla
+-Default configuration for reporting Anaconda problems to Red Hat Bugzilla used
+-to easily configure the reporting process for Red Hat systems. Just install this
+-package and you're done.
+-%endif
+-
+ %if %{with bugzilla}
+ %package anaconda
+ Summary: Default configuration for reporting anaconda bugs
+@@ -281,6 +247,9 @@ data over ftp/scp...
+ 
+ %prep
+ %autosetup -p 1
++sed -e 's/CentOS/OpenELA/g' -i po/*.po
++sed -e 's/Centos/OpenELA/g' -i po/*.po
++sed -e 's/centos/openelalinux/g' -i po/*.po
+ 
+ %build
+ ./autogen.sh
+@@ -339,7 +308,6 @@ rm -f %{buildroot}/%{_datadir}/libreport/workflows/workflow_AnacondaFedora.xml
+ %endif
+ 
+ # Remove unwanted RHEL specific workflow configuration files
+-%if ! 0%{?rhel} || 0%{?eln}
+ rm -f %{buildroot}/%{_datadir}/libreport/workflows/workflow_uReport.xml
+ rm -f %{buildroot}/%{_datadir}/libreport/workflows/workflow_AnacondaRHELBugzilla.xml
+ rm -f %{buildroot}/%{_datadir}/libreport/workflows/workflow_RHELBugzillaCCpp.xml
+@@ -362,7 +330,28 @@ rm -f %{buildroot}/%{_sysconfdir}/libreport/workflows.d/report_uReport.conf
+ rm -f %{buildroot}/%{_sysconfdir}/libreport/workflows.d/report_rhel_bugzilla.conf
+ rm -f %{buildroot}%{_mandir}/man5/report_uReport.conf.5
+ rm -f %{buildroot}%{_mandir}/man5/report_rhel_bugzilla.conf.5
+-%endif
++rm -f %{buildroot}%{_mandir}/man1/reporter-rhtsupport.1
++rm -f %{buildroot}%{_mandir}/man5/rhtsupport.conf.5
++rm -f %{buildroot}%{_mandir}/man5/rhtsupport_event.conf.5
++rm -f %{buildroot}/%{_datadir}/dbus-1/interfaces/com.redhat.problems.configuration.rhtsupport.xml
++
++# Remove CentOS
++rm -f %{buildroot}/%{_datadir}/%{name}/workflows/workflow_CentOSCCpp.xml
++rm -f %{buildroot}/%{_datadir}/%{name}/workflows/workflow_CentOSKerneloops.xml
++rm -f %{buildroot}/%{_datadir}/%{name}/workflows/workflow_CentOSPython.xml
++rm -f %{buildroot}/%{_datadir}/%{name}/workflows/workflow_CentOSPython3.xml
++rm -f %{buildroot}/%{_datadir}/%{name}/workflows/workflow_CentOSVmcore.xml
++rm -f %{buildroot}/%{_datadir}/%{name}/workflows/workflow_CentOSXorg.xml
++rm -f %{buildroot}/%{_datadir}/%{name}/workflows/workflow_CentOSLibreport.xml
++rm -f %{buildroot}/%{_datadir}/%{name}/workflows/workflow_CentOSJava.xml
++rm -f %{buildroot}/%{_datadir}/%{name}/workflows/workflow_CentOSJavaScript.xml
++rm -f %{buildroot}/%{_sysconfdir}/libreport/workflows.d/report_centos.conf
++rm -f %{buildroot}/%{_mandir}/man5/report_centos.conf.5
++rm -f %{buildroot}/%{_datadir}/%{name}/events/report_CentOSBugTracker.xml
++rm -f %{buildroot}/%{_sysconfdir}/libreport/events/report_CentOSBugTracker.conf
++rm -f %{buildroot}/%{_mandir}/man5/report_CentOSBugTracker.conf.5
++rm -f %{buildroot}/%{_sysconfdir}/libreport/events.d/centos_report_event.conf
++rm -f %{buildroot}/%{_mandir}/man5/centos_report_event.conf.5
+ 
+ %check
+ make check|| {
+@@ -524,11 +513,6 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+ %{_mandir}/man1/reporter-ureport.1.gz
+ %{_mandir}/man5/ureport.conf.5.gz
+ %{_datadir}/%{name}/events/report_uReport.xml
+-%if 0%{?rhel} && ! 0%{?eln}
+-%config(noreplace) %{_sysconfdir}/libreport/workflows.d/report_uReport.conf
+-%{_datadir}/%{name}/workflows/workflow_uReport.xml
+-%{_mandir}/man5/report_uReport.conf.5.*
+-%endif
+ 
+ %if %{with bugzilla}
+ %files plugin-bugzilla
+@@ -571,24 +555,24 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+ %{_mandir}/man5/mantisbt_format_analyzer_libreport.conf.5.*
+ %{_mandir}/man5/mantisbt_formatdup_analyzer_libreport.conf.5.*
+ 
+-%files centos
+-%{_datadir}/%{name}/workflows/workflow_CentOSCCpp.xml
+-%{_datadir}/%{name}/workflows/workflow_CentOSKerneloops.xml
+-%{_datadir}/%{name}/workflows/workflow_CentOSPython.xml
+-%{_datadir}/%{name}/workflows/workflow_CentOSPython3.xml
+-%{_datadir}/%{name}/workflows/workflow_CentOSVmcore.xml
+-%{_datadir}/%{name}/workflows/workflow_CentOSXorg.xml
+-%{_datadir}/%{name}/workflows/workflow_CentOSLibreport.xml
+-%{_datadir}/%{name}/workflows/workflow_CentOSJava.xml
+-%{_datadir}/%{name}/workflows/workflow_CentOSJavaScript.xml
+-%config(noreplace) %{_sysconfdir}/libreport/workflows.d/report_centos.conf
+-%{_mandir}/man5/report_centos.conf.5.*
+-%{_datadir}/%{name}/events/report_CentOSBugTracker.xml
+-%config(noreplace) %{_sysconfdir}/libreport/events/report_CentOSBugTracker.conf
+-%{_mandir}/man5/report_CentOSBugTracker.conf.5.*
+-# report_CentOSBugTracker events are shipped by libreport package
+-%config(noreplace) %{_sysconfdir}/libreport/events.d/centos_report_event.conf
+-%{_mandir}/man5/centos_report_event.conf.5.gz
++%files openela
++%{_datadir}/%{name}/workflows/workflow_OpenELACCpp.xml
++%{_datadir}/%{name}/workflows/workflow_OpenELAKerneloops.xml
++%{_datadir}/%{name}/workflows/workflow_OpenELAPython.xml
++%{_datadir}/%{name}/workflows/workflow_OpenELAPython3.xml
++%{_datadir}/%{name}/workflows/workflow_OpenELAVmcore.xml
++%{_datadir}/%{name}/workflows/workflow_OpenELAXorg.xml
++%{_datadir}/%{name}/workflows/workflow_OpenELALibreport.xml
++%{_datadir}/%{name}/workflows/workflow_OpenELAJava.xml
++%{_datadir}/%{name}/workflows/workflow_OpenELAJavaScript.xml
++%config(noreplace) %{_sysconfdir}/libreport/workflows.d/report_openela.conf
++%{_mandir}/man5/report_openela.conf.5.*
++%{_datadir}/%{name}/events/report_OpenELABugTracker.xml
++%config(noreplace) %{_sysconfdir}/libreport/events/report_OpenELABugTracker.conf
++%{_mandir}/man5/report_OpenELABugTracker.conf.5.*
++# report_OpenELABugTracker events are shipped by libreport package
++%config(noreplace) %{_sysconfdir}/libreport/events.d/openela_report_event.conf
++%{_mandir}/man5/openela_report_event.conf.5.gz
+ 
+ %files plugin-reportuploader
+ %{_mandir}/man*/reporter-upload.*
+@@ -606,38 +590,6 @@ gtk-update-icon-cache %{_datadir}/icons/hicolor &>/dev/null || :
+ %config(noreplace) %{_sysconfdir}/libreport/events/report_Uploader.conf
+ %{_mandir}/man5/report_Uploader.conf.5.*
+ 
+-%if 0%{?fedora} || 0%{?eln}
+-%files fedora
+-%{_datadir}/%{name}/workflows/workflow_FedoraCCpp.xml
+-%{_datadir}/%{name}/workflows/workflow_FedoraKerneloops.xml
+-%{_datadir}/%{name}/workflows/workflow_FedoraPython.xml
+-%{_datadir}/%{name}/workflows/workflow_FedoraPython3.xml
+-%{_datadir}/%{name}/workflows/workflow_FedoraVmcore.xml
+-%{_datadir}/%{name}/workflows/workflow_FedoraXorg.xml
+-%{_datadir}/%{name}/workflows/workflow_FedoraLibreport.xml
+-%{_datadir}/%{name}/workflows/workflow_FedoraJava.xml
+-%{_datadir}/%{name}/workflows/workflow_FedoraJavaScript.xml
+-%config(noreplace) %{_sysconfdir}/libreport/workflows.d/report_fedora.conf
+-%{_mandir}/man5/report_fedora.conf.5.*
+-%endif
+-
+-%if 0%{?rhel} && ! 0%{?eln}
+-%files rhel-bugzilla
+-%{_datadir}/%{name}/workflows/workflow_RHELBugzillaCCpp.xml
+-%{_datadir}/%{name}/workflows/workflow_RHELBugzillaKerneloops.xml
+-%{_datadir}/%{name}/workflows/workflow_RHELBugzillaPython.xml
+-%{_datadir}/%{name}/workflows/workflow_RHELBugzillaVmcore.xml
+-%{_datadir}/%{name}/workflows/workflow_RHELBugzillaXorg.xml
+-%{_datadir}/%{name}/workflows/workflow_RHELBugzillaLibreport.xml
+-%{_datadir}/%{name}/workflows/workflow_RHELBugzillaJava.xml
+-%{_datadir}/%{name}/workflows/workflow_RHELBugzillaJavaScript.xml
+-%config(noreplace) %{_sysconfdir}/libreport/workflows.d/report_rhel_bugzilla.conf
+-%{_mandir}/man5/report_rhel_bugzilla.conf.5.*
+-
+-%files rhel-anaconda-bugzilla
+-%{_datadir}/%{name}/workflows/workflow_AnacondaRHELBugzilla.xml
+-%endif
+-
+ %if %{with bugzilla}
+ %files anaconda
+ %if 0%{?fedora} || 0%{?eln}
